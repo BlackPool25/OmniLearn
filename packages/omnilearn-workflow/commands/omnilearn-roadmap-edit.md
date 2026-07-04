@@ -143,7 +143,7 @@ TOPICS_DIR="$SKILL_DIR/topics"
 For each topic directory found in `$TOPICS_DIR/`:
 1. Read its `topic-progress.md` — extract:
    - Topic name and overall status (✅ Completed / 🔵 In Progress / 🟢 Not Started)
-   - Which assignments are completed (1/3, 2/3, 3/3)
+   - Which assignments are completed (e.g., 1/3, 2/2, 3/5 — not fixed to any number)
    - Skills demonstrated (from the log)
    - Last session date
 2. List the assignments directory — note which assignment files exist
@@ -163,21 +163,21 @@ Write to this file with the following structure:
 ## Topics Inventory
 | Topic | Status | Assignments Done | Skills Demonstrated | Last Activity |
 |-------|--------|-----------------|---------------------|---------------|
-| topic-1 | ✅ Completed | 3/3 | {list of skills} | {date} |
-| topic-2 | 🔵 In Progress | 1/3 | {partial skills} | {date} |
-| topic-3 | 🟢 Not Started | 0/3 | — | — |
+| topic-1 | ✅ Completed | 3/3 (N=3 total) | {list of skills} | {date} |
+| topic-2 | 🔵 In Progress | 1/2 (N=2 total) | {partial skills} | {date} |
+| topic-3 | 🟢 Not Started | 0/— | — | — |
 
 ## Detailed Topic States
 
 ### topic-1 (✅ Completed)
 - topic-progress.md: {TOPICS_DIR}/topic-1/topic-progress.md
-- Assignments: 01-basics ✅, 02-intermediate ✅, 03-real-world ✅
+- Assignments: 01-basics ✅, 02-intermediate ✅, 03-real-world ✅ (N=3 total)
 - Skills: {extracted skills demonstrated}
 - Sessions: {count} learning sessions in runs/
 
 ### topic-2 (🔵 In Progress)
 - topic-progress.md: {TOPICS_DIR}/topic-2/topic-progress.md
-- Assignments: 01-basics ✅, 02-intermediate 🔵, 03-real-world 🟢
+- Assignments: 01-basics ✅, 02-intermediate 🔵 (N=2 total planned so far — more can be added)
 - Current assignment: {which one they're on}
 - Skills: {extracted skills demonstrated so far}
 - Sessions: {count} learning sessions

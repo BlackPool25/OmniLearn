@@ -251,8 +251,8 @@ task(category="deep", run_in_background=false, timeout=600000, prompt="
    ### 2. ...
    
    ## Assignment Structure
-   - 3 assignments: Basic → Intermediate → Real-World
-   - Each builds on the previous
+   - N assignments with progressive difficulty: Basic → Intermediate → Real-World
+   - Each builds on the previous. More than 3 can be created if the user needs extra practice or the topic is deep.
    - Final assignment should be a mini-project or real-world scenario
    
    STEP 3 — Create Assignment 1 (the first one) at:
@@ -318,7 +318,7 @@ task(category="deep", run_in_background=false, timeout=600000, prompt="
    - Add topic entry with status 🔵 In Progress and a link to topic-progress.md
 
 5. MUST NOT DO:
-   - Do NOT create all 3 assignments at once — only the first one
+   - Do NOT create all assignments at once — only create the first one. Subsequent assignments are generated on-demand as the user progresses.
    - Do NOT make assignments purely theoretical — use real-world scenarios
    - Do NOT skip the scaffold — the user should be able to start coding immediately
    - Do NOT use any external packages that aren't standard library without noting it
@@ -547,10 +547,11 @@ task(category="unspecified-high", run_in_background=false, timeout=300000, promp
    - Read the previous assignment(s) to ensure progression: {ASSIGNMENT_DIR}
    - Read the user's learning preferences and history from {SKILL_PREFS}
    - Research online for real-world applications of this topic at this difficulty level
-   - Create the assignment with INCREASING difficulty:
+   - Create the assignment with INCREASING difficulty following this PATTERN (more levels can be added as needed):
      * Assignment 1: Basic understanding and application
      * Assignment 2: Intermediate — combine concepts, handle edge cases  
      * Assignment 3: Real-world — full scenario, multiple concerns, best practices
+     * (Additional assignments can be created if the user needs more depth or practice)
    - For each assignment, create these files in:
      {TOPICS_DIR}/{topic}/assignments/0{n}-{concept-name}/
    
@@ -597,7 +598,7 @@ task(category="unspecified-high", run_in_background=false, timeout=300000, promp
 
 ### 4.3 When All Assignments Are Complete
 
-When all 3 assignments for a topic are done:
+When all required assignments for a topic are done (the topic-roadmap defines how many; the default progression is 3 but more can be added):
 
 1. **Update `topic-progress.md`** — set overall status to ✅ Completed, finalize all assignment statuses.
 2. **Update `progress-index.md`** — mark topic as ✅ Completed (this is the overview index).
@@ -777,7 +778,7 @@ Each level should feel meaningfully harder. The jump from 02 to 03 should be the
 - ❌ Do NOT write explanations when user has a doubt — generate a diagnostic task instead
 - ❌ Do NOT give away solutions when the user is stuck — give them tasks that lead to the answer
 - ❌ Do NOT skip scaffold files — the user needs a starting point
-- ❌ Do NOT make all 3 assignments the same difficulty — progression is critical
+- ❌ Do NOT make all assignments the same difficulty — progression is critical. Each should be noticeably harder than the last.
 - ❌ Do NOT let runs/ contain progress state — runs/ is for action logs only, topic-progress.md is the source of truth
 - ❌ Do NOT skip updating topic-progress.md — it's the authoritative progress record per topic
 - ❌ Do NOT lose the user's work or progress — always read topic-progress.md before acting
