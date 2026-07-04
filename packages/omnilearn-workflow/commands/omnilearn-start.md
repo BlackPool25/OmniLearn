@@ -27,12 +27,15 @@ The goal metric: **Can the user apply what they learned to real-world problems t
 ## Directory Structure
 
 ```
-.omnilearn/<skill>/
-├── roadmap.md
-├── SkillPreferences.md
-├── SkillConventions.md                  ← 🔑 Setup conventions: package manager, project structure, deps, testing preferences (auto-learned)
-├── progress-index.md                   ← Overview index: links to topic-progress.md per topic
-├── runs/                                   ← Skill-level run logs (action logs only, NOT progress)
+{learningDirectory}/
+├── .omnilearn/                              ← Config only (config.json, UserPreferences.md)
+│
+└── <skill>/                                  ← Skills at learning root
+    ├── roadmap.md
+    ├── SkillPreferences.md
+    ├── SkillConventions.md                  ← 🔑 Setup conventions: package manager, project structure, deps, testing (auto-learned)
+    ├── progress-index.md                   ← Overview index: links to topic-progress.md per topic
+    ├── runs/                                   ← Skill-level run logs (action logs only, NOT progress)
 │   └── YYYY-MM-DD-HHMMSS-learning-<topic>/
 │       ├── agent-log.md                    ← What happened this run: decisions, actions taken
 │       ├── interaction-1.md                ← User Q&A interaction record
@@ -127,7 +130,7 @@ fi
 
 LEARNING_DIR=$(grep -o '"learningDirectory"[[:space:]]*:[[:space:]]*"[^"]*"' "$OMNILEARN_CONFIG" | sed 's/"learningDirectory"[[:space:]]*:[[:space:]]*"//' | sed 's/"$//')
 OMNILEARN_DIR="$LEARNING_DIR/.omnilearn"
-SKILL_DIR="$OMNILEARN_DIR/<skill>"
+SKILL_DIR="$LEARNING_DIR/<skill>"
 ROADMAP="$SKILL_DIR/roadmap.md"
 PROGRESS_INDEX="$SKILL_DIR/progress-index.md"
 TOPICS_DIR="$SKILL_DIR/topics"
@@ -158,8 +161,9 @@ Read these files to understand the current state:
 
 **Cross-skill inventory** — Scan the learning directory for other skills the user has learned:
 ```bash
-ls -d "$OMNILEARN_DIR"/*/ 2>/dev/null | while read dir; do
+ls -d "$LEARNING_DIR"/*/ 2>/dev/null | while read dir; do
   skill_name=$(basename "$dir")
+  [ "$skill_name" = ".omnilearn" ] && continue
   if [ "$skill_name" != "$SKILL_NAME" ] && [ -f "$dir/progress-index.md" ]; then
     echo "Related skill: $skill_name — can integrate with $SKILL_NAME"
   fi
@@ -359,7 +363,7 @@ Read the assignment files for the current topic:
 │  {brief description of the assignment}                           │
 │                                                                   │
 │  Files:                                                           │
-│  • Question: .omnilearn/{skill}/topics/{topic}/assignments/      │
+│  • Question: {SKILL_DIR}/topics/{topic}/assignments/             │
 │              01-{name}/question.md                                │
 │  • Scaffold: (same directory)/scaffold/                           │
 │  • Test: (same directory)/test.{ext}                              │
@@ -699,7 +703,7 @@ Write to `$CURRENT_RUN/agent-log.md`:
 
 ```bash
 if git rev-parse --git-dir > /dev/null 2>&1; then
-  git add "$OMNILEARN_DIR/"
+  git add "$LEARNING_DIR/"
   git commit -m "omnilearn: learning session — {skill}/{topic}
 
 - Completed assignment(s): {list}

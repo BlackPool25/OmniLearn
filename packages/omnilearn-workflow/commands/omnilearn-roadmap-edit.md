@@ -59,14 +59,15 @@ This command performs the same rigorous research-backed process as `/omnilearn-r
 ## Directory Structure Reference
 
 ```
-.omnilearn/
-├── UserPreferences.md
-└── <skill-name>/
+.omnilearn/                                        ← Config only
+└── UserPreferences.md
+
+<skill-name>/                                      ← Skill at learning directory root
     ├── SkillPreferences.md
     ├── SkillConventions.md                  ← Preserved during edits
     ├── roadmap.md                          ← Will be updated
     ├── progress-index.md                   ← Must be preserved & updated
-    ├── runs/
+    ├── runs/                               ← Action logs
     │   └── YYYY-MM-DD-HHMMSS-roadmap-edit/
     │       ├── agent-log.md
     │       ├── research-changes.md         ← Research on requested changes
@@ -110,7 +111,7 @@ fi
 
 LEARNING_DIR=$(grep -o '"learningDirectory"[[:space:]]*:[[:space:]]*"[^"]*"' "$OMNILEARN_CONFIG" | sed 's/"learningDirectory"[[:space:]]*:[[:space:]]*"//' | sed 's/"$//')
 OMNILEARN_DIR="$LEARNING_DIR/.omnilearn"
-SKILL_DIR="$OMNILEARN_DIR/<skill>"
+SKILL_DIR="$LEARNING_DIR/<skill>"
 ROADMAP="$SKILL_DIR/roadmap.md"
 RUNS_DIR="$SKILL_DIR/runs"
 TOPICS_DIR="$SKILL_DIR/topics"
@@ -444,9 +445,9 @@ Write to `$ARCHIVE_DIR/agent-log.md`:
 │  • Preserved: All progress data intact                            │
 │                                                                   │
 │  🔗 Previous version archived at:                                 │
-│     .omnilearn/{skill}/runs/{timestamp}-roadmap-edit/             │
+│     {SKILL_DIR}/runs/{timestamp}-roadmap-edit/                    │
 │                                                                   │
-│  📍 Updated roadmap: .omnilearn/{skill}/roadmap.md                │
+│  📍 Updated roadmap: {SKILL_DIR}/roadmap.md                       │
 │                                                                   │
 │  ┌─ Change Preview ──────────────────────────────────────────┐   │
 │  │ {brief summary of the most significant changes}            │   │
@@ -463,7 +464,7 @@ Write to `$ARCHIVE_DIR/agent-log.md`:
 
 ```bash
 if git rev-parse --git-dir > /dev/null 2>&1; then
-  git add "$OMNILEARN_DIR/"
+  git add "$LEARNING_DIR/"
   git commit -m "omnilearn: update roadmap for {skill}
 
 - {change summary}
@@ -502,8 +503,8 @@ If no git repo: same flow as `/omnilearn-roadmap` — ask if the user wants to i
 | User says "you deleted my progress!" | STOP. Restore from archive. The topics/ directory must be fully intact with git checkout. |
 | Change analysis conflicts with online research | Present both perspectives, ask user which to follow |
 | Progress markers accidentally changed | Restore from archived old roadmap |
-| topic-progress.md accidentally modified | Revert: `git checkout .omnilearn/{skill}/topics/{topic}/topic-progress.md` |
-| topics/ directory accidentally modified | Revert: `git checkout .omnilearn/{skill}/topics/` |
+| topic-progress.md accidentally modified | Revert: `git checkout {SKILL_DIR}/topics/{topic}/topic-progress.md` |
+| topics/ directory accidentally modified | Revert: `git checkout {SKILL_DIR}/topics/` |
 | Topic renamed but topic-progress.md path broken | Move directory back, use a symlink or alias instead |
 | User's requested change is too vague | Ask clarifying questions before proceeding |
 

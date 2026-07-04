@@ -1,5 +1,5 @@
 ---
-description: Create a comprehensive, real-world-ready learning roadmap for any skill or subject. Uses multi-agent research to design optimal learning paths with practical, hands-on focus. Stores structured output in .omnilearn/ for continuous learning.
+description: Create a comprehensive, real-world-ready learning roadmap for any skill or subject. Uses multi-agent research to design optimal learning paths with practical, hands-on focus. Stores structured output in the learning directory for continuous learning.
 ---
 
 # /omnilearn-roadmap — Create a Comprehensive Learning Roadmap
@@ -15,13 +15,14 @@ description: Create a comprehensive, real-world-ready learning roadmap for any s
 ## Directory Structure
 
 ```
-.omnilearn/
-├── UserPreferences.md                           ← Global user preferences (auto-read + updated)
-└── <skill-name>/                                 ← Normalized skill folder (e.g., "Rust", "Machine-Learning")
-    ├── SkillPreferences.md                       ← Per-skill learning preferences
-    ├── SkillConventions.md                       ← 🔑 Setup conventions: package manager, project structure, deps, testing (auto-learned)
-    ├── roadmap.md                                ← Master roadmap (the main deliverable)
-    ├── progress-index.md                         ← Progress log — index of all runs
+.omnilearn/                                        ← ONLY config and global preferences
+├── UserPreferences.md                            ← Global user preferences (auto-read + updated)
+
+<skill-name>/                                      ← Skills at LEARNING DIRECTORY ROOT
+├── SkillPreferences.md                           ← Per-skill learning preferences
+├── SkillConventions.md                           ← 🔑 Setup conventions: package manager, project structure, deps, testing (auto-learned)
+├── roadmap.md                                    ← Master roadmap (the main deliverable)
+├── progress-index.md                             ← Progress log — index of all runs
     ├── runs/                                     ← Research & execution logs
     │   └── YYYY-MM-DD-HHMMSS-roadmap-creation/
     │       ├── agent-log.md                      ← What this run did, decisions made
@@ -87,7 +88,10 @@ OMNILEARN_DIR="$LEARNING_DIR/.omnilearn"
 echo "Using learning directory: $LEARNING_DIR"
 ```
 
-All subsequent paths in this command use `$OMNILEARN_DIR` as the base.
+**Path convention:**
+- `$OMNILEARN_DIR` = `$LEARNING_DIR/.omnilearn/` — **ONLY** config + UserPreferences.md
+- `$SKILL_DIR` = `$LEARNING_DIR/<skill>/` — skill folders are at the learning directory ROOT
+- All cross-skill scans use `$LEARNING_DIR/*/` (excluding `.omnilearn`)
 
 ## Current Date Context (CRITICAL — Must Pass to ALL Subagents)
 
@@ -147,18 +151,18 @@ If the input is too vague (e.g., "I want to learn something"), ask for clarifica
 ### 0.2 Check Prerequisites
 
 ```bash
-SKILL_DIR="$OMNILEARN_DIR/<skill-name>"
+SKILL_DIR="$LEARNING_DIR/<skill-name>"
 RUNS_DIR="$SKILL_DIR/runs"
 TOPICS_DIR="$SKILL_DIR/topics"
 
 # Create base omnilearn dir if not exists
-mkdir -p "$OMNILEARN_DIR"
+mkdir -p "$SKILL_DIR"
 ```
 
 ### 0.3 Check for Existing Skill
 
 If `$SKILL_DIR` already has a `roadmap.md`, inform the user:
-> "A roadmap for **{skill}** already exists at `.omnilearn/{skill}/roadmap.md`. To revise it, use `/omnilearn-roadmap-edit`. To start learning, use `/omnilearn-start`."
+> "A roadmap for **{skill}** already exists at `{SKILL_DIR}/roadmap.md`. To revise it, use `/omnilearn-roadmap-edit`. To start learning, use `/omnilearn-start`."
 
 If the user wants to overwrite, note it and proceed (archive old roadmap to runs/ first).
 
@@ -182,9 +186,11 @@ Read `UserPreferences.md` if it exists. Key signals to extract:
 **This is mandatory.** Scan the learning directory for ALL existing skills the user has already learned or is learning:
 
 ```bash
-# List all existing skill directories inside .omnilearn/
-ls -d "$OMNILEARN_DIR"/*/ 2>/dev/null | while read dir; do
+# List all existing skill directories at learning root (NOT .omnilearn/)
+ls -d "$LEARNING_DIR"/*/ 2>/dev/null | while read dir; do
   skill_name=$(basename "$dir")
+  # Skip .omnilearn — it's config only
+  [ "$skill_name" = ".omnilearn" ] && continue
   # Read their progress to understand what the user already knows
   if [ -f "$dir/progress-index.md" ]; then
     echo "Existing skill: $skill_name — checking progress..."
@@ -535,7 +541,7 @@ Write to the agent log file documenting:
 │  ✅ Roadmap Created: {skill}                                      │
 ├──────────────────────────────────────────────────────────────────┤
 │                                                                   │
-│  📍 Location: .omnilearn/{skill}/roadmap.md                       │
+│  📍 Location: {SKILL_DIR}/roadmap.md                                │
 │                                                                   │
 │  📊 Roadmap Overview:                                             │
 │  • Foundation: {N} topics — build the fundamentals                │
@@ -582,7 +588,7 @@ fi
 
 If git repo exists:
 ```bash
-git add "$OMNILEARN_DIR/"
+git add "$LEARNING_DIR/"
 git commit -m "omnilearn: create learning roadmap for {skill}
 
 - Added master roadmap with foundation, core, advanced, and real-world topics
@@ -597,7 +603,7 @@ If no git repo exists, ask:
 If yes:
 ```bash
 git init
-git add "$OMNILEARN_DIR/"
+git add "$LEARNING_DIR/"
 git commit -m "omnilearn: initialize learning environment with {skill} roadmap"
 ```
 
@@ -613,7 +619,7 @@ Mark the task as complete. Update UserPreferences.md if new relevant information
 |-------|-------|-----------------|
 | Content research subagent completed | 1 | Block — must have research |
 | Learning path subagent completed | 1 | Block — must have research |
-| Cross-skill inventory scanned | 0 | Scan .omnilearn/ directories |
+| Cross-skill inventory scanned | 0 | Scan $LEARNING_DIR/*/ (skip .omnilearn) |
 | User level extracted from preferences | 0 | Infer from available signals |
 | Roadmap has 5+ substantive topics | 2 | Re-synthesize with fix |
 | Roadmap skips topics user already knows | 2 | Re-synthesize — remove redundant basics |

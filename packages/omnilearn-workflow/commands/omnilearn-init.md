@@ -37,9 +37,20 @@ This global location is always accessible regardless of which project directory 
 
 ```
 {learningDirectory}/
-└── .omnilearn/
-    ├── config.json              ← Mirror of the global config (for reference)
-    └── UserPreferences.md       ← Global user preferences (auto-populated)
+├── .omnilearn/                  ← ONLY configuration and global preferences
+│   ├── config.json              ← Mirror of the global config (for reference)
+│   └── UserPreferences.md       ← Global user preferences (auto-populated)
+│
+├── <skill>/                     ← Skills live at the ROOT of learning directory
+│   ├── roadmap.md
+│   ├── SkillPreferences.md
+│   ├── SkillConventions.md
+│   ├── progress-index.md
+│   ├── runs/
+│   └── topics/
+│
+└── <another-skill>/             ← Each skill is its own top-level folder
+    └── ...
 ```
 
 ## Phase 0: CHECK EXISTING CONFIG
@@ -117,7 +128,8 @@ sed -i "s|DATE_PLACEHOLDER|$(date +%Y-%m-%d)|g" "$OMNILEARN_CONFIG"
 ### 2.2 Create Base Directory Structure
 
 ```bash
-# Create .omnilearn in the learning directory
+# Create .omnilearn in the learning directory (config only)
+# Skills will be created as top-level directories at $LEARNING_DIR
 OMNILEARN_DIR="$LEARNING_DIR/.omnilearn"
 mkdir -p "$OMNILEARN_DIR"
 

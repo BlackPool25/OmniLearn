@@ -25,7 +25,7 @@ Both scenarios follow the same core flow: research → analyze → produce struc
 ## Directory Structure
 
 ```
-.omnilearn/<skill>/
+<skill>/                                          ← Skill at learning directory root
 ├── roadmap.md
 ├── SkillPreferences.md
 ├── SkillConventions.md                  ← 🔑 Setup conventions read for consistent diagnostic tasks
@@ -121,7 +121,7 @@ fi
 
 LEARNING_DIR=$(grep -o '"learningDirectory"[[:space:]]*:[[:space:]]*"[^"]*"' "$OMNILEARN_CONFIG" | sed 's/"learningDirectory"[[:space:]]*:[[:space:]]*"//' | sed 's/"$//')
 OMNILEARN_DIR="$LEARNING_DIR/.omnilearn"
-SKILL_DIR="$OMNILEARN_DIR/<skill>"
+SKILL_DIR="$LEARNING_DIR/<skill>"
 TOPIC_DIR="$SKILL_DIR/topics/<topic>"
 TOPIC_ROADMAP="$TOPIC_DIR/topic-roadmap.md"
 CURRENT_RUN="$SKILL_DIR/runs/$(date +%s)-refine-<topic>"
@@ -410,7 +410,7 @@ Write to `$CURRENT_RUN/agent-log.md`:
 
 ```bash
 if git rev-parse --git-dir > /dev/null 2>&1; then
-  git add "$OMNILEARN_DIR/"
+  git add "$LEARNING_DIR/"
   git commit -m "omnilearn: refine topic '{topic}' in {skill}
 
 - {summary of what was done}
@@ -442,7 +442,7 @@ If no git repo: ask if user wants to initialize one (same pattern).
 | Topic not found | Suggest available topics from the skill roadmap |
 | User's question is too vague | Ask clarifying questions before researching |
 | Research yields poor results | Try alternative search queries, broaden scope |
-| Refinement accidentally modifies assignments | Revert: `git checkout .omnilearn/{skill}/topics/{topic}/assignments/` |
+| Refinement accidentally modifies assignments | Revert: `git checkout $SKILL_DIR/topics/$TOPIC/assignments/` |
 | User wants to undo refinement | Archive current, restore from git or previous file in runs/ |
 | User has multiple questions | Answer the most foundational one first, then the dependent ones |
 
