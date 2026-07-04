@@ -32,6 +32,7 @@ This command performs the same rigorous research-backed process as `/omnilearn-r
 ├── UserPreferences.md
 └── <skill-name>/
     ├── SkillPreferences.md
+    ├── SkillConventions.md                  ← Preserved during edits
     ├── roadmap.md                          ← Will be updated
     ├── progress-index.md                   ← Must be preserved & updated
     ├── runs/

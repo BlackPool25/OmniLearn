@@ -19,6 +19,7 @@ description: Create a comprehensive, real-world-ready learning roadmap for any s
 ├── UserPreferences.md                           ← Global user preferences (auto-read + updated)
 └── <skill-name>/                                 ← Normalized skill folder (e.g., "Rust", "Machine-Learning")
     ├── SkillPreferences.md                       ← Per-skill learning preferences
+    ├── SkillConventions.md                       ← 🔑 Setup conventions: package manager, project structure, deps, testing (auto-learned)
     ├── roadmap.md                                ← Master roadmap (the main deliverable)
     ├── progress-index.md                         ← Progress log — index of all runs
     ├── runs/                                     ← Research & execution logs

@@ -28,6 +28,7 @@ Both scenarios follow the same core flow: research → analyze → produce struc
 .omnilearn/<skill>/
 ├── roadmap.md
 ├── SkillPreferences.md
+├── SkillConventions.md                  ← 🔑 Setup conventions read for consistent diagnostic tasks
 ├── progress-index.md
 ├── runs/
 │   └── YYYY-MM-DD-HHMMSS-refine-<topic>/

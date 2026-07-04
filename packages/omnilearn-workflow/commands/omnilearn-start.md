@@ -30,7 +30,8 @@ The goal metric: **Can the user apply what they learned to real-world problems t
 .omnilearn/<skill>/
 ├── roadmap.md
 ├── SkillPreferences.md
-├── progress-index.md                       ← Overview index: links to topic-progress.md per topic
+├── SkillConventions.md                  ← 🔑 Setup conventions: package manager, project structure, deps, testing preferences (auto-learned)
+├── progress-index.md                   ← Overview index: links to topic-progress.md per topic
 ├── runs/                                   ← Skill-level run logs (action logs only, NOT progress)
 │   └── YYYY-MM-DD-HHMMSS-learning-<topic>/
 │       ├── agent-log.md                    ← What happened this run: decisions, actions taken
@@ -111,11 +112,12 @@ if [ ! -d "$SKILL_DIR" ] || [ ! -f "$ROADMAP" ]; then
 fi
 ```
 
-### 0.3 Read Progress, Preferences & Cross-Skill Inventory
+### 0.3 Read Progress, Preferences, Conventions & Cross-Skill Inventory
 
 Read these files to understand the current state:
 - `UserPreferences.md` (if exists) — learning style, experience level, goals
 - `SkillPreferences.md` — per-skill state, preferences
+- **`SkillConventions.md`** (if exists) — 🔑 **Setup conventions: package manager, project structure, deps, testing preferences. Read this BEFORE generating any scaffold or assignment — it ensures consistency.**
 - `progress-index.md` — overview of topic statuses
 
 **For any topics marked 🔵 In Progress**, read their `topic-progress.md` files to get the detailed state:
@@ -293,6 +295,7 @@ task(category="deep", run_in_background=false, timeout=600000, prompt="
    - Topics directory: {TOPICS_DIR}/{topic}/
    - User experience level: {from preferences}
    - User learning style: {from preferences}
+   - Skill conventions (package manager, project structure, deps, testing setup): {from SkillConventions.md — read before generating scaffold}
 ")
 ```
 
@@ -547,6 +550,7 @@ task(category="unspecified-high", run_in_background=false, timeout=300000, promp
    - Difficulty: {basic/intermediate/real-world}
    - Previous assignment concepts: {summary}
    - User performance on previous assignment: {observations}
+   - Skill conventions (package manager, project structure, deps, testing setup): {from SkillConventions.md — MUST follow these when generating scaffold}
 ")
 ```
 
