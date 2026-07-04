@@ -15,12 +15,26 @@ description: Start an interactive learning session. Generates hands-on assignmen
 
 ## Core Learning Philosophy
 
-**The user learns by doing — but needs the right theoretical foundation first.** Every topic produces:
-1. **`topic-explanation.md`** — Concise theory: TL;DR → core concepts → annotated examples → common pitfalls → best practices. The minimum viable theory you need before touching code.
-2. **Hands-on assignments** — increasing difficulty: basic → intermediate → real-world
-3. **Test scripts** — automated validation of the user's solution
-4. **Scaffold code** — starter files so they can jump straight into coding
-5. **Solution guides** — reference implementations with explanation
+**Learning happens in the Zone of Proximal Development (ZPD)**: just beyond what the user can do alone, but achievable with scaffolding. The goal is NOT to test them — it's to TEACH them through calibrated challenge.
+
+### Key Principles (Backed by Research)
+
+| Principle | What It Means |
+|-----------|---------------|
+| **Zone of Proximal Development** | Tasks should be just above current ability + supported by hints, scaffolds, and guidance. Never drop someone into the deep end alone. |
+| **Desirable Difficulty** | Productive struggle grows skills — but only when scaffolding exists. Challenge without support = frustration. |
+| **85% Rule** | Optimal learning happens when ~85% of the task is familiar and ~15% is new. Calibrate so the user succeeds most of the time but has to stretch. |
+| **Flow State** | Challenge must match skill level. Too easy → boredom. Too hard → anxiety. The agent's job is to keep the user in flow by adjusting difficulty dynamically. |
+| **Scaffolding & Fading** | Start with strong support (detailed hints, guided steps). Fade support as the user gains competence. |
+| **Immediate Feedback** | Automated tests give instant signal. Use test results to detect struggle early and adjust. |
+
+### What Every Topic Produces
+
+1. **`topic-explanation.md`** — Concise theory: TL;DR → core concepts → annotated examples → common pitfalls → best practices. The minimum viable theory before touching code.
+2. **Hands-on assignments** — calibrated difficulty: baseline → adjusted based on performance. NOT a fixed ladder.
+3. **Test scripts** — immediate feedback so the user knows if they're on track.
+4. **Scaffold code** — starter files so they jump straight into coding, not boilerplate.
+5. **Solution guides** — reference implementations with explanation.
 
 The goal metric: **Can the user apply what they learned to real-world problems they haven't seen before?**
 
@@ -458,15 +472,17 @@ task(category="unspecified-high", run_in_background=false, prompt="
 
 4. MUST DO:
    - **CURRENT DATE: {CURRENT_DATE}** — ONLY research current information. Check for deprecation warnings. If a library/framework has a newer standard (e.g. CRA → Vite, pip → uv), reference the current approach.
+   - **ZPD calibration**: The user is struggling with this concept. The micro-exercise must be EASIER than the main assignment — it fills the gap, not adds more difficulty. ~90% familiar / 10% new.
    - Read the current assignment: {ASSIGNMENT_DIR}/question.md (to understand context without giving away the solution)
    - Research the concept online to find the MOST COMMON confusion points
    - Design a micro-exercise that:
      * ISOLATES the confusing concept — removes unrelated complexity
      * Is a real-world-ish scenario (NOT 'write a function that...' — frame it as solving a problem)
-     * Can be solved in 5-15 minutes
+     * Can be solved in 5-15 minutes (if it takes longer, it's outside ZPD — add more scaffolding)
      * Requires the user to WRITE CODE / PRODUCE SOMETHING to complete
      * Has a CLEAR RIGHT ANSWER that can be verified
-   - DO NOT write academic explanations. The exercise IS the explanation.
+     * INCLUDES built-in scaffolding: starter code, inline hints (commented), or step guidance
+   - DO NOT write academic explanations. The exercise IS the teaching tool.
    - Include in the exercise brief:
      * A short scenario (1-2 sentences)
      * What to build
@@ -487,6 +503,7 @@ task(category="unspecified-high", run_in_background=false, prompt="
    - Concept: {concept}
    - User's confusion: {their exact question}
    - User experience level: {from preferences}
+   - ZPD directive: This micro-exercise must be EASIER than the main assignment. The user is struggling — your job is to fill the gap, not stretch further. ~90% familiar / 10% new.
 ")
 ```
 
@@ -499,27 +516,39 @@ task(category="unspecified-high", run_in_background=false, prompt="
 
 3. When the user completes the micro-exercise, verify their solution and discuss what they learned. THEN connect it back to the main assignment.
 
-4. If the user still doesn't understand after the micro-exercise, generate a SECOND one targeting a different angle. Only revert to a direct explanation after 2 failed task attempts.
+4. If the user still doesn't understand after the micro-exercise:
+   - Do NOT make the second one harder. Make it EASIER with MORE scaffolding.
+   - Break the concept into smaller sub-concepts and target just one.
+   - Provide more starter code, more inline hints, more step-by-step guidance.
+   - Only after 2 failed task attempts AND regressed scaffolding, provide a brief direct explanation followed by an even simpler task.
+   - If the user is clearly out of their depth, suggest reviewing prerequisites from topic-roadmap.md.
 
 **For solution review** (user says "check my solution" or "I'm done"):
 1. Read the user's solution from the scaffold directory.
 2. Do NOT use a subagent — review it yourself (it's quick).
 3. Check:
-   - Does it pass the tests?
+   - Does it pass the tests? (If not, this tells you they're outside ZPD — offer easier variant)
    - Is the code clean and idiomatic?
    - Are there edge cases not handled?
    - Could it be more efficient?
-4. Provide structured feedback.
-5. If it passes review:
-   - Mark assignment as completed in progress-index.md
-   - Ask if they want to proceed to the next assignment
-   - Generate next assignment on-demand
+4. Provide structured feedback. Be encouraging — the goal is teaching, not grading.
+5. **Calibrate next step based on performance:**
+   - **Passed easily (no hints, fast, clean code)** → great. Flag for next level: skip easier variants, go straight to stretch.
+   - **Passed with some hints or minor issues** → perfect ZPD. Proceed to next level normally.
+   - **Passed but needed significant help** → they're at the edge of ZPD. Consider an intermediate bridging assignment before the next difficulty level.
+   - **Did NOT pass tests** → **do NOT proceed.** They're outside ZPD. Offer a regressed easier variant or more scaffolding. Create an intermediate exercise that bridges the gap.
+6. Update topic-progress.md with the result and your calibration assessment.
 
 **For "I'm stuck" / "give me a hint"**:
 1. Read their current work (if any exists).
-2. Identify where they're stuck.
-3. Provide a hint that guides WITHOUT giving away the solution.
-4. If they're fundamentally stuck on a prerequisite concept, offer to create mini-exercises.
+2. Identify where they're stuck. Is it the core concept or a tangential detail? This tells you if they need ZPD regression.
+3. **First response**: provide a minimal hint that nudges, not solves. See if they can proceed.
+4. **Second response** (still stuck): increase scaffolding. Give more specific guidance, a partial code snippet, or break the next step down.
+5. **Third response** (still stuck): **the assignment is outside their ZPD.** Do NOT keep pushing. Offer to:
+   - Create an easier variant of the same assignment with more scaffolding
+   - Switch to a bridging micro-exercise that targets the prerequisite they're missing
+   - Review the relevant section of topic-explanation.md together
+6. Log the struggle pattern in topic-progress.md so the next agent knows this was a sticking point.
 
 **For deeper practice requests** (e.g., "I need more practice with this"):
 ```typescript
@@ -531,14 +560,17 @@ task(category="writing", run_in_background=false, prompt="
 
 4. MUST DO:
    - **CURRENT DATE: {CURRENT_DATE}** — Use current, real-world examples. Avoid outdated patterns or deprecated APIs.
+   - **ZPD calibration**: These exercises should be EASIER than the main assignment — they're bridging exercises, not harder challenges.
    - Read the current assignment to understand what's been covered
-   - Create 2-3 smaller exercises that target the specific area the user is struggling with
-   - Each should be solvable in 5-15 minutes
-   - Include: brief description, expected output, hints if needed
+   - Identify the SPECIFIC sub-concept the user is struggling with (from their interaction history)
+   - Create 2-3 smaller exercises that target ONLY that sub-concept
+   - Each should be solvable in 5-15 minutes (if longer, add more scaffolding)
+   - Include: brief description, expected output, hints, and partial starter code
    - Save as markdown with code blocks to: {CURRENT_RUN}/interaction-{n}-practice-exercises.md
 
 5. MUST NOT:
    - Do NOT repeat the same problems from the main assignment
+   - Do NOT make these harder than the main assignment — they bridge the gap, they don't add difficulty
 ")
 ```
 
@@ -784,15 +816,32 @@ If no git repo: ask if user wants to initialize one (same as /omnilearn-roadmap)
 | SkillPreferences.md updated | 5 | Update with new observations |
 | Git commit made | 6 | Commit or ask user |
 
-## Assignment Difficulty Progression
+## Assignment Difficulty Calibration (ZPD + Flow)
 
-| Level | Focus | What it Tests |
-|-------|-------|---------------|
-| 01-basic | Core concept application | Can the user apply the fundamental concept correctly? |
-| 02-intermediate | Combined concepts + edge cases | Can the user handle complexity and edge cases? |
-| 03-real-world | Full scenario + best practices | Can the user deliver production-quality code? |
+### The 85% Rule
+Each assignment should be roughly **85% familiar / 15% new**. If the user is struggling with more than ~30% of an assignment, it's outside their ZPD — provide more scaffolding or offer an easier variant.
 
-Each level should feel meaningfully harder. The jump from 02 to 03 should be the biggest — that's where real learning happens.
+### Difficulty Progression (NOT Fixed)
+
+| Phase | Focus | Scaffolding Level | Success Rate Target |
+|-------|-------|-------------------|---------------------|
+| **Baseline** | Establish floor. One straightforward task to gauge current level. | High — detailed hints, guided steps | Should complete easily (>90%) |
+| **Stretch 1** | Core concept + one new twist. First real learning step. | Medium — key hints available | Should complete with some struggle (~80%) |
+| **Stretch 2** | Combine concepts, handle edge cases. Defensible difficulty. | Low — minimal hints, fading support | Productive struggle (~70%) |
+| **Real-World** | Full scenario, multiple concerns, best practices. Maximum stretch. | Minimal — just success criteria | Challenge zone (~60% initial, improve with iteration) |
+
+> **If the user succeeds at Baseline too easily** → skip Stretch 1, start at Stretch 2.
+> **If the user fails at Stretch 2** → drop back, provide more scaffolding, or create an intermediate variant.
+> **The goal is never to make the user fail.** It's to keep them in flow — challenged but supported.
+
+### Dynamic Adjustment Rules
+
+1. **After each assignment completion**, assess: Did they need hints? How many? How long did it take?
+2. **Passed too easily** (no hints, fast) → skip one difficulty level or add a harder twist.
+3. **Passed with some hints** → perfect. Proceed to next level with similar calibration.
+4. **Failed or excessive struggle** → **do NOT push forward.** Regress: offer an easier variant with more scaffolding, or provide a bridging exercise.
+5. **After 2 consecutive failures on the same level** → the topic is too advanced. Recommend reviewing prerequisites from topic-roadmap.md before continuing.
+6. **The number of assignments per topic is NOT fixed at 3.** Add extra intermediate assignments if the user needs them. Remove levels that are too easy. The goal is learning, not completing a checklist.
 
 ## Error Recovery
 
@@ -810,12 +859,17 @@ Each level should feel meaningfully harder. The jump from 02 to 03 should be the
 
 ## What You MUST Do
 
+- ✅ **Teach, don't test** — The goal is learning, not assessment. Every assignment is a teaching tool.
+- ✅ **Calibrate to ZPD** — First assignment should be baseline (easy, ~90% success). Adjust difficulty based on performance. Never start with max difficulty.
+- ✅ **Follow the 85% Rule** — ~85% familiar, ~15% new. If the user struggles with >30% of the task, it's outside ZPD — provide scaffolding or regress.
+- ✅ **Scaffold then fade** — Start with strong support (detailed hints, starter code, guided steps). Remove scaffolding as competence grows.
+- ✅ **Detect frustration early** — If user says "I'm stuck" 3+ times, the task is outside ZPD. Create an easier variant or bridge exercise.
 - ✅ **Check roadmap exists before starting** — validate the skill is set up
 - ✅ **Read progress before each session** — know where the user left off
 - ✅ **Generate assignments on-demand** — only create what's needed now
 - ✅ **Create topic roadmaps via deep subagent** — autonomous research + structure
 - ✅ **Progress lives in topic-progress.md** — assignment status, sessions, skills demonstrated. Runs/ contains only action logs.
-- ✅ **When user has a doubt, generate a diagnostic micro-task** — the user learns by doing, not by reading explanations
+- ✅ **When user has a doubt, generate a diagnostic micro-task** — but make it EASIER than the main assignment (fills the ZPD gap)
 - ✅ **Update topic-progress.md after every state change** — never batch updates. Then sync progress-index.md (the overview)
 - ✅ **Log all interactions in runs/** — create interaction task files for Q&A, agent-log.md for session actions
 - ✅ **Update user preferences** — when you have clear signal
@@ -826,10 +880,15 @@ Each level should feel meaningfully harder. The jump from 02 to 03 should be the
 ## What You MUST NOT Do
 
 - ❌ Do NOT create all assignments upfront — generate on-demand as user progresses
+- ❌ Do NOT start with max difficulty — always baseline first, then calibrate
+- ❌ Do NOT push the user beyond ZPD — if they're failing, regress and scaffold more
+- ❌ Do NOT keep the same difficulty after failure — if tests fail, offer an easier variant
 - ❌ Do NOT write explanations when user has a doubt — generate a diagnostic task instead
 - ❌ Do NOT give away solutions when the user is stuck — give them tasks that lead to the answer
 - ❌ Do NOT skip scaffold files — the user needs a starting point
+- ❌ Do NOT skip fading scaffolding — as competence grows, reduce support
 - ❌ Do NOT make all assignments the same difficulty — progression is critical. Each should be noticeably harder than the last.
+- ❌ Do NOT fix the number of assignments — add more if the user needs intermediate steps, remove if they're too easy
 - ❌ Do NOT let runs/ contain progress state — runs/ is for action logs only, topic-progress.md is the source of truth
 - ❌ Do NOT skip updating topic-progress.md — it's the authoritative progress record per topic
 - ❌ Do NOT lose the user's work or progress — always read topic-progress.md before acting
