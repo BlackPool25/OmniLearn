@@ -15,35 +15,35 @@ description: Create a comprehensive, real-world-ready learning roadmap for any s
 ## Directory Structure
 
 ```
-.omnilearn/                                        ← ONLY config and global preferences
-├── UserPreferences.md                            ← Global user preferences (auto-read + updated)
-
-<skill-name>/                                      ← Skills at LEARNING DIRECTORY ROOT
-├── SkillPreferences.md                           ← Per-skill learning preferences
-├── SkillConventions.md                           ← 🔑 Setup conventions: package manager, project structure, deps, testing (auto-learned)
-├── roadmap.md                                    ← Master roadmap (the main deliverable)
-├── progress-index.md                             ← Progress log — index of all runs
-    ├── runs/                                     ← Research & execution logs
-    │   └── YYYY-MM-DD-HHMMSS-roadmap-creation/
-    │       ├── agent-log.md                      ← What this run did, decisions made
-    │       ├── research-content.md               ← Raw: subagent A findings (what to learn)
-    │       ├── research-learning.md              ← Raw: subagent B findings (how to learn it)
-    │       └── roadmap-draft.md                  ← Raw: synthesized roadmap draft
-    └── topics/                                   ← Topics in the roadmap (populated during learning)
-        └── <topic-name>/                         ← Each topic has its own progress tracking
-            ├── topic-roadmap.md                  ← Detailed subtopic roadmap (created on-demand)
-            ├── **topic-explanation.md**          ← ← 🔑 THEORY: TL;DR → concepts → examples → pitfalls (read this first)
-            ├── topic-progress.md                 ← Per-topic progress: assignments status, sessions
-            ├── assignments/                      ← Hands-on assignments (generated during learning)
+{learningDirectory}/
+├── .omnilearn/                                   ← ONLY config + global prefs
+│   ├── config.json
+│   └── UserPreferences.md
+│
+└── <skill-name>/                                 ← Skills at learning directory ROOT
+    ├── SkillPreferences.md                       ← Per-skill learning preferences
+    ├── SkillConventions.md                       ← Setup conventions (auto-learned)
+    ├── roadmap.md                                ← Master roadmap
+    ├── progress-index.md                         ← Progress overview
+    ├── runs/                                     ← Skill-level run logs
+    │   └── YYYY-MM-DD-HHMMSS-<activity>/
+    │       ├── agent-log.md
+    │       └── ...
+    └── topics/                                   ← Topics in the roadmap
+        └── <topic-name>/                         ← One per topic
+            ├── topic-roadmap.md                  ← Detailed subtopic roadmap
+            ├── topic-explanation.md              ← Theory: TL;DR → concepts → examples → pitfalls
+            ├── topic-progress.md                 ← 🔑 Progress: assignments, sessions, skills
+            ├── assignments/
             │   ├── 01-<concept>/
-            │   │   ├── question.md               ← Real-world scenario assignment brief
-            │   │   ├── test.<ext>                ← Automated test script
-            │   │   ├── scaffold/                 ← Starter code (user writes solution here)
-            │   │   └── solution-guide.md         ← Reference solution + explanation
-            │   └── ...
-            └── runs/                             ← Per-topic action logs (NOT progress state)
+            │   │   ├── question.md               ← Real-world scenario
+            │   │   ├── test.<ext>                ← Automated tests
+            │   │   ├── scaffold/                 ← Starter code
+            │   │   └── solution-guide.md         ← Reference solution
+            │   └── 02-<concept>/ ...
+            └── runs/                             ← Per-topic action logs
                 └── YYYY-MM-DD-HHMMSS-<activity>/
-                    ├── agent-log.md              ← What happened this run: decisions, actions
+                    ├── agent-log.md
                     └── ...
 ```
 

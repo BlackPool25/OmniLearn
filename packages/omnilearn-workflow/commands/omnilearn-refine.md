@@ -28,7 +28,7 @@ Both scenarios follow the same core flow: research → analyze → produce struc
 <skill>/                                          ← Skill at learning directory root
 ├── roadmap.md
 ├── SkillPreferences.md
-├── SkillConventions.md                  ← 🔑 Setup conventions read for consistent diagnostic tasks
+├── SkillConventions.md                  ← Setup conventions read for consistent diagnostic tasks
 ├── progress-index.md
 ├── runs/
 │   └── YYYY-MM-DD-HHMMSS-refine-<topic>/
@@ -40,7 +40,14 @@ Both scenarios follow the same core flow: research → analyze → produce struc
     └── <topic>/
         ├── topic-roadmap.md                 ← Will be updated if refined
         ├── topic-explanation.md             ← Theory foundation (updated if refined)
+        ├── topic-progress.md                ← Progress state (preserved)
         ├── assignments/                     ← May be added to if needed
+        │   ├── 01-<concept>/
+        │   │   ├── question.md
+        │   │   ├── test.<ext>
+        │   │   ├── scaffold/
+        │   │   └── solution-guide.md
+        │   └── ...
         └── runs/
 ```
 
