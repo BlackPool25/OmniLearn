@@ -102,9 +102,9 @@ CURRENT_YEAR=$(date +%Y)
 
 All subagents that use MCP tools MUST follow these exact calling conventions:
 
-### `context7_resolve-library-id` + `context7_query_docs`
+### `context7_resolve-library-id` + `context7_query-docs`
 1. **ALWAYS call `context7_resolve-library-id` FIRST** with the library name to get the correct library ID.
-2. Use the returned library ID (format: `/org/package`) as the `libraryId` parameter in `context7_query_docs`.
+2. Use the returned library ID (format: `/org/package`) as the `libraryId` parameter in `context7_query-docs`.
 3. Do NOT guess or hardcode library IDs.
 4. Max 3 calls per question.
 
@@ -128,7 +128,7 @@ All subagents that use MCP tools MUST follow these exact calling conventions:
 | `task(category="unspecified-high", background)` | Content creation | Heavy research, roadmap synthesis, file writing |
 | `task(category="deep", background)` | Autonomous multi-step | Complex subtasks that need internal orchestration |
 | `google_search` / `websearch_web_search_exa` | Research phases | Web research for content, learning paths, best practices |
-| `context7_resolve-library-id` + `context7_query_docs` | Tech skills | Official documentation for languages, frameworks, libraries |
+| `context7_resolve-library-id` + `context7_query-docs` | Tech skills | Official documentation for languages, frameworks, libraries |
 | `read`, `write`, `edit`, `bash`, `grep`, `glob` | Every phase | File operations and navigation |
 | `bash(git ...)` | Completion phase | Git commit after roadmap creation |
 
@@ -225,7 +225,7 @@ task(category="unspecified-high", run_in_background=true, prompt="
 
 2. EXPECTED OUTCOME: A comprehensive, structured markdown file covering all knowledge areas, concepts, tools, and practices needed for real-world proficiency in {skill} — **filtered and prioritized based on what the user already knows**.
 
-3. REQUIRED TOOLS: google_search, websearch_web_search_exa, context7_resolve-library-id, context7_query_docs, read, write
+3. REQUIRED TOOLS: google_search, websearch_web_search_exa, context7_resolve-library-id, context7_query-docs, read, write
 
 4. MUST DO:
    - **CURRENT DATE: {CURRENT_DATE}** — ONLY search for and reference current information. Prioritize resources from the last 1-2 years. Check for deprecation warnings on any library/framework/tool. Prefer latest stable versions. If something has been superseded (e.g. Create React App → Vite, npm → pnpm/uv), flag it.
@@ -367,7 +367,7 @@ task(category="unspecified-high", run_in_background=false, timeout=300000, promp
 1. TASK: Synthesize research into a personalized, level-adaptive, cross-skill-integrated master roadmap for {skill}.
 2. EXPECTED OUTCOME: A detailed roadmap.md file with a learning path TAILORED to this user's level and existing knowledge — skipping what they already know, integrating related skills, and focused on real-world readiness.
 
-3. REQUIRED TOOLS: google_search, websearch_web_search_exa, context7_query_docs, read, write, grep
+3. REQUIRED TOOLS: google_search, websearch_web_search_exa, context7_query-docs, read, write, grep
 
 4. MUST DO:
    - **CURRENT DATE: {CURRENT_DATE}** — ONLY reference current information. If you do additional online research, prioritize resources from the last 1-2 years. Check for deprecation warnings. Prefer latest stable versions of any library/framework/tool mentioned.

@@ -71,9 +71,9 @@ CURRENT_YEAR=$(date +%Y)
 
 All subagents that use MCP tools MUST follow these exact calling conventions:
 
-### `context7_resolve-library-id` + `context7_query_docs`
+### `context7_resolve-library-id` + `context7_query-docs`
 1. **ALWAYS call `context7_resolve-library-id` FIRST** with the library name to get the correct library ID.
-2. Use the returned library ID (format: `/org/package`) as the `libraryId` parameter in `context7_query_docs`.
+2. Use the returned library ID (format: `/org/package`) as the `libraryId` parameter in `context7_query-docs`.
 3. Do NOT guess or hardcode library IDs.
 4. Max 3 calls per question.
 
@@ -98,7 +98,7 @@ All subagents that use MCP tools MUST follow these exact calling conventions:
 | `task(category="writing")` | Content writing | Topic explanations, solution guides |
 | `task(category="unspecified-high", ["programming"])` | Technical work | Test scripts, scaffold code |
 | `google_search` / `websearch_web_search_exa` | Research | Learning resources, topic best practices |
-| `context7_query_docs` | Tech skills | Official docs for languages/frameworks |
+| `context7_query-docs` | Tech skills | Official docs for languages/frameworks |
 | `question` tool | User interaction | Present topic choices, ask for preferences |
 | `read`, `write`, `edit`, `bash`, `grep`, `glob` | Every phase | File operations |
 | `bash(git ...)` | Completion | Commit progress |
@@ -211,7 +211,7 @@ task(category="deep", run_in_background=false, timeout=600000, prompt="
 1. TASK: Create a comprehensive subtopic roadmap and initial learning materials for the topic '{topic}' within the skill '{skill}'.
 2. EXPECTED OUTCOME: A detailed topic-roadmap.md with structured learning path, AND the first assignment with question, test script, scaffold, and solution guide.
 
-3. REQUIRED TOOLS: google_search, websearch_web_search_exa, context7_resolve-library-id, context7_query_docs, read, write, bash, grep
+3. REQUIRED TOOLS: google_search, websearch_web_search_exa, context7_resolve-library-id, context7_query-docs, read, write, bash, grep
 
 4. MUST DO — Step-by-Step:
    - **CURRENT DATE: {CURRENT_DATE}** — ONLY research current information. Prioritize resources from the last 1-2 years. Check for deprecation warnings. Prefer latest stable versions of any library/framework/tool. If older resources reference superseded tools (e.g. CRA → Vite, pip → uv), flag and use the current standard.
@@ -401,7 +401,7 @@ task(category="unspecified-high", run_in_background=false, prompt="
 1. TASK: Create a focused micro-exercise that tests the user's understanding of '{concept}' in '{skill}'. The user is struggling with this concept during assignment '{assignment}' on topic '{topic}'.
 2. EXPECTED OUTCOME: A self-contained micro-exercise (5-15 min to solve) that isolates the specific concept and lets the user figure it out by coding.
 
-3. REQUIRED TOOLS: google_search, websearch_web_search_exa, context7_query_docs, read, write
+3. REQUIRED TOOLS: google_search, websearch_web_search_exa, context7_query-docs, read, write
 
 4. MUST DO:
    - **CURRENT DATE: {CURRENT_DATE}** — ONLY research current information. Check for deprecation warnings. If a library/framework has a newer standard (e.g. CRA → Vite, pip → uv), reference the current approach.
@@ -535,7 +535,7 @@ task(category="unspecified-high", run_in_background=false, timeout=300000, promp
 1. TASK: Create the next assignment ({assignment-num}) for topic '{topic}' in skill '{skill}'.
 2. EXPECTED OUTCOME: Complete assignment with question.md, test script, scaffold, and solution-guide.md at the next difficulty level.
 
-3. REQUIRED TOOLS: google_search, websearch_web_search_exa, context7_query_docs, read, write
+3. REQUIRED TOOLS: google_search, websearch_web_search_exa, context7_query-docs, read, write
 
 4. MUST DO:
    - **CURRENT DATE: {CURRENT_DATE}** — ONLY use current, real-world scenarios. Avoid outdated APIs, deprecated libraries, or superseded best practices. Research what's current in the industry for this topic.

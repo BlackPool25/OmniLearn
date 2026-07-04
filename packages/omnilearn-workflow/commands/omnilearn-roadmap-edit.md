@@ -25,9 +25,9 @@ CURRENT_YEAR=$(date +%Y)
 
 All subagents that use MCP tools MUST follow these exact calling conventions:
 
-### `context7_resolve-library-id` + `context7_query_docs`
+### `context7_resolve-library-id` + `context7_query-docs`
 1. **ALWAYS call `context7_resolve-library-id` FIRST** with the library name to get the correct library ID.
-2. Use the returned library ID (format: `/org/package`) as the `libraryId` parameter in `context7_query_docs`.
+2. Use the returned library ID (format: `/org/package`) as the `libraryId` parameter in `context7_query-docs`.
 3. Do NOT guess or hardcode library IDs.
 4. Max 3 calls per question.
 
@@ -257,7 +257,7 @@ task(category="unspecified-high", run_in_background=true, prompt="
 1. TASK: Research online to validate and inform the user's requested roadmap changes for {skill}.
 2. EXPECTED OUTCOME: A research document with web-sourced findings about the topics the user wants to add/modify.
 
-3. REQUIRED TOOLS: google_search, websearch_web_search_exa, context7_resolve-library-id, context7_query_docs, read, write
+3. REQUIRED TOOLS: google_search, websearch_web_search_exa, context7_resolve-library-id, context7_query-docs, read, write
 
 4. MUST DO:
    - **CURRENT DATE: {CURRENT_DATE}** — ONLY research current information. Check for deprecation warnings. Prioritize resources from the last 1-2 years. Prefer latest stable versions of any library/framework/tool.

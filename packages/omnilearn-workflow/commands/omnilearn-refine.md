@@ -56,9 +56,9 @@ CURRENT_YEAR=$(date +%Y)
 
 All subagents that use MCP tools MUST follow these exact calling conventions:
 
-### `context7_resolve-library-id` + `context7_query_docs`
+### `context7_resolve-library-id` + `context7_query-docs`
 1. **ALWAYS call `context7_resolve-library-id` FIRST** with the library name to get the correct library ID.
-2. Use the returned library ID (format: `/org/package`) as the `libraryId` parameter in `context7_query_docs`.
+2. Use the returned library ID (format: `/org/package`) as the `libraryId` parameter in `context7_query-docs`.
 3. Do NOT guess or hardcode library IDs.
 4. Max 3 calls per question.
 
@@ -79,7 +79,7 @@ All subagents that use MCP tools MUST follow these exact calling conventions:
 | Tool | When | Why |
 |------|------|-----|
 | `google_search` / `websearch_web_search_exa` | Research | Topic research, answer questions, validate changes |
-| `context7_resolve-library-id` + `context7_query_docs` | Tech topics | Official documentation for precise answers — MUST call resolve first |
+| `context7_resolve-library-id` + `context7_query-docs` | Tech topics | Official documentation for precise answers — MUST call resolve first |
 | `task(category="unspecified-high", background)` | Heavy work | Research, analysis, topic updates |
 | `read`, `write`, `edit`, `bash`, `grep`, `glob` | All phases | File operations |
 
@@ -162,7 +162,7 @@ task(category="unspecified-high", run_in_background=false, prompt="
 1. TASK: Create a focused micro-exercise that tests the user's understanding of '{concept}' in '{skill}'. The user is confused about: '{user_request}'.
 2. EXPECTED OUTCOME: A self-contained micro-exercise (5-15 min) that isolates the specific concept and lets the user figure it out by coding/building.
 
-3. REQUIRED TOOLS: google_search, websearch_web_search_exa, context7_resolve-library-id, context7_query_docs, read, write
+3. REQUIRED TOOLS: google_search, websearch_web_search_exa, context7_resolve-library-id, context7_query-docs, read, write
 
 4. MUST DO:
    - Read the current topic-roadmap.md to understand what's been covered: {TOPIC_ROADMAP}
@@ -275,7 +275,7 @@ task(category="unspecified-high", run_in_background=true, prompt="
 1. TASK: Research online to find better ways to structure and teach '{topic}' in '{skill}'.
 2. EXPECTED OUTCOME: A research document with web-sourced findings about best practices for teaching/learning this topic.
 
-3. REQUIRED TOOLS: google_search, websearch_web_search_exa, context7_resolve-library-id, context7_query_docs, read, write
+3. REQUIRED TOOLS: google_search, websearch_web_search_exa, context7_resolve-library-id, context7_query-docs, read, write
 
 4. MUST DO:
    - Analyze the user's refinement request: '{user_request}'
