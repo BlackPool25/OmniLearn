@@ -89,6 +89,37 @@ echo "Using learning directory: $LEARNING_DIR"
 
 All subsequent paths in this command use `$OMNILEARN_DIR` as the base.
 
+## Current Date Context (CRITICAL — Must Pass to ALL Subagents)
+
+```bash
+CURRENT_DATE=$(date +%Y-%m-%d)
+CURRENT_YEAR=$(date +%Y)
+```
+
+**Every subagent that does research or content generation MUST receive the current date and be told to prioritize current information.**
+
+## MCP Tool Call Semantics (CRITICAL — Subagents Frequently Get This Wrong)
+
+All subagents that use MCP tools MUST follow these exact calling conventions:
+
+### `context7_resolve-library-id` + `context7_query_docs`
+1. **ALWAYS call `context7_resolve-library-id` FIRST** with the library name to get the correct library ID.
+2. Use the returned library ID (format: `/org/package`) as the `libraryId` parameter in `context7_query_docs`.
+3. Do NOT guess or hardcode library IDs.
+4. Max 3 calls per question.
+
+### `google_search` / `websearch_web_search_exa`
+- Use specific, well-formed queries — not keywords, but describe the ideal page.
+- Good: `"blog post comparing Rust error handling patterns 2024"`
+- Bad: `"Rust error handling"`
+- Pass `query` as a plain string, not wrapped in an object.
+
+### General Rules
+- Match tool call parameter names EXACTLY as defined in the tool schema.
+- Do NOT wrap string parameters in extra objects or arrays.
+- Do NOT nest tool calls unless the API explicitly requires it.
+- If a tool call fails, verify parameter names match before retrying.
+
 ## MANDATORY TOOLS
 
 | Tool | When | Why |
@@ -197,6 +228,7 @@ task(category="unspecified-high", run_in_background=true, prompt="
 3. REQUIRED TOOLS: google_search, websearch_web_search_exa, context7_resolve-library-id, context7_query_docs, read, write
 
 4. MUST DO:
+   - **CURRENT DATE: {CURRENT_DATE}** — ONLY search for and reference current information. Prioritize resources from the last 1-2 years. Check for deprecation warnings on any library/framework/tool. Prefer latest stable versions. If something has been superseded (e.g. Create React App → Vite, npm → pnpm/uv), flag it.
 
    FIRST — Consider the user's level and existing knowledge:
    - User's stated experience with {skill}: {user level}
@@ -256,6 +288,7 @@ task(category="unspecified-high", run_in_background=true, prompt="
 3. REQUIRED TOOLS: google_search, websearch_web_search_exa, read, write
 
 4. MUST DO:
+   - **CURRENT DATE: {CURRENT_DATE}** — ONLY search for and reference current information. Prioritize resources from the last 1-2 years. Check for deprecation warnings on any library/framework/tool. Prefer latest stable versions. If something has been superseded (e.g. Create React App → Vite, npm → pnpm/uv), flag it.
 
    FIRST — Consider the user's level:
    - User's experience with {skill}: {user level}
@@ -337,11 +370,12 @@ task(category="unspecified-high", run_in_background=false, timeout=300000, promp
 3. REQUIRED TOOLS: google_search, websearch_web_search_exa, context7_query_docs, read, write, grep
 
 4. MUST DO:
+   - **CURRENT DATE: {CURRENT_DATE}** — ONLY reference current information. If you do additional online research, prioritize resources from the last 1-2 years. Check for deprecation warnings. Prefer latest stable versions of any library/framework/tool mentioned.
    - Read BOTH research files:
      * Content research: {RUNS_DIR}/research-content.md
      * Learning path research: {RUNS_DIR}/research-learning.md
    - Read cross-skill context: existing skills the user has
-   - If there are gaps or contradictions, do additional research online
+   - If there are gaps or contradictions, do additional research online (using current date context)
    
    CRITICAL — Personalization rules:
    - **Do NOT include topics the user already knows.** If the user is experienced in Python and learning FastAPI, skip Python fundamentals entirely.

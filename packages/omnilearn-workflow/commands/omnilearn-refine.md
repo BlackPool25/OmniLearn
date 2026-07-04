@@ -43,12 +43,43 @@ Both scenarios follow the same core flow: research → analyze → produce struc
         └── runs/
 ```
 
+## Current Date Context
+
+```bash
+CURRENT_DATE=$(date +%Y-%m-%d)
+CURRENT_YEAR=$(date +%Y)
+```
+
+**Every subagent that does research or content generation MUST receive the current date and be told to prioritize current information over deprecated or outdated resources.**
+
+## MCP Tool Call Semantics (CRITICAL — Subagents Frequently Get This Wrong)
+
+All subagents that use MCP tools MUST follow these exact calling conventions:
+
+### `context7_resolve-library-id` + `context7_query_docs`
+1. **ALWAYS call `context7_resolve-library-id` FIRST** with the library name to get the correct library ID.
+2. Use the returned library ID (format: `/org/package`) as the `libraryId` parameter in `context7_query_docs`.
+3. Do NOT guess or hardcode library IDs.
+4. Max 3 calls per question.
+
+### `google_search` / `websearch_web_search_exa`
+- Use specific, well-formed queries — not keywords, but what you want to find.
+- Good: `"best practices for error handling in Rust 2024"`
+- Bad: `"Rust error handling"`
+- Pass the `query` parameter as a string, not an object.
+
+### General Rules
+- Match tool call parameter names EXACTLY as specified in the tool definitions.
+- Do NOT wrap string parameters in objects.
+- Do NOT nest tool calls unless required by the API.
+- If a tool call fails, check parameter names and types before retrying.
+
 ## MANDATORY TOOLS
 
 | Tool | When | Why |
 |------|------|-----|
 | `google_search` / `websearch_web_search_exa` | Research | Topic research, answer questions, validate changes |
-| `context7_query_docs` | Tech topics | Official documentation for precise answers |
+| `context7_resolve-library-id` + `context7_query_docs` | Tech topics | Official documentation for precise answers — MUST call resolve first |
 | `task(category="unspecified-high", background)` | Heavy work | Research, analysis, topic updates |
 | `read`, `write`, `edit`, `bash`, `grep`, `glob` | All phases | File operations |
 

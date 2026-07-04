@@ -12,6 +12,37 @@ description: Edit an existing learning roadmap with full research-backed revisio
 /omnilearn-roadmap-edit Python I want to add web scraping and automation
 ```
 
+## Current Date Context
+
+```bash
+CURRENT_DATE=$(date +%Y-%m-%d)
+CURRENT_YEAR=$(date +%Y)
+```
+
+**All subagents that do research or content generation MUST receive the current date and prioritize current information over deprecated or outdated resources.**
+
+## MCP Tool Call Semantics (CRITICAL — Subagents Frequently Get This Wrong)
+
+All subagents that use MCP tools MUST follow these exact calling conventions:
+
+### `context7_resolve-library-id` + `context7_query_docs`
+1. **ALWAYS call `context7_resolve-library-id` FIRST** with the library name to get the correct library ID.
+2. Use the returned library ID (format: `/org/package`) as the `libraryId` parameter in `context7_query_docs`.
+3. Do NOT guess or hardcode library IDs.
+4. Max 3 calls per question.
+
+### `google_search` / `websearch_web_search_exa`
+- Use specific, well-formed queries — not keywords, but describe the ideal page.
+- Good: `"current best practices for REST API design 2025"`
+- Bad: `"REST API"`
+- Pass `query` as a plain string, not wrapped in an object.
+
+### General Rules
+- Match tool call parameter names EXACTLY as defined in the tool schema.
+- Do NOT wrap string parameters in extra objects or arrays.
+- Do NOT nest tool calls unless the API explicitly requires it.
+- If a tool call fails, verify parameter names match before retrying.
+
 ## Core Behavior
 
 This command performs the same rigorous research-backed process as `/omnilearn-roadmap`, but operates on an EXISTING roadmap. It:
@@ -229,6 +260,7 @@ task(category="unspecified-high", run_in_background=true, prompt="
 3. REQUIRED TOOLS: google_search, websearch_web_search_exa, context7_resolve-library-id, context7_query_docs, read, write
 
 4. MUST DO:
+   - **CURRENT DATE: {CURRENT_DATE}** — ONLY research current information. Check for deprecation warnings. Prioritize resources from the last 1-2 years. Prefer latest stable versions of any library/framework/tool.
    - Analyze the user's change request: '{user_change_request}'
    - Use google_search / websearch_web_search_exa to research:
      * The specific topics/areas the user wants to add or modify

@@ -58,6 +58,37 @@ The goal metric: **Can the user apply what they learned to real-world problems t
                 └── ...
 ```
 
+## Current Date Context (CRITICAL — Must Pass to ALL Subagents)
+
+```bash
+CURRENT_DATE=$(date +%Y-%m-%d)
+CURRENT_YEAR=$(date +%Y)
+```
+
+**Every subagent that does research or content generation MUST receive the current date and be told to prioritize current information over deprecated or outdated resources.**
+
+## MCP Tool Call Semantics (CRITICAL — Subagents Frequently Get This Wrong)
+
+All subagents that use MCP tools MUST follow these exact calling conventions:
+
+### `context7_resolve-library-id` + `context7_query_docs`
+1. **ALWAYS call `context7_resolve-library-id` FIRST** with the library name to get the correct library ID.
+2. Use the returned library ID (format: `/org/package`) as the `libraryId` parameter in `context7_query_docs`.
+3. Do NOT guess or hardcode library IDs.
+4. Max 3 calls per question.
+
+### `google_search` / `websearch_web_search_exa`
+- Use specific, well-formed queries — not keywords, but describe the ideal page.
+- Good: `"current state of Rust async patterns 2025"`
+- Bad: `"Rust async"`
+- Pass `query` as a plain string, not wrapped in an object.
+
+### General Rules
+- Match tool call parameter names EXACTLY as defined in the tool schema.
+- Do NOT wrap string parameters in extra objects or arrays.
+- Do NOT nest tool calls unless the API explicitly requires it.
+- If a tool call fails, verify parameter names match before retrying.
+
 ## MANDATORY TOOLS
 
 | Tool | When | Why |
@@ -183,6 +214,7 @@ task(category="deep", run_in_background=false, timeout=600000, prompt="
 3. REQUIRED TOOLS: google_search, websearch_web_search_exa, context7_resolve-library-id, context7_query_docs, read, write, bash, grep
 
 4. MUST DO — Step-by-Step:
+   - **CURRENT DATE: {CURRENT_DATE}** — ONLY research current information. Prioritize resources from the last 1-2 years. Check for deprecation warnings. Prefer latest stable versions of any library/framework/tool. If older resources reference superseded tools (e.g. CRA → Vite, pip → uv), flag and use the current standard.
 
    STEP 1 — Research:
    - Read the main roadmap to understand how this topic fits: {ROADMAP}
@@ -372,6 +404,7 @@ task(category="unspecified-high", run_in_background=false, prompt="
 3. REQUIRED TOOLS: google_search, websearch_web_search_exa, context7_query_docs, read, write
 
 4. MUST DO:
+   - **CURRENT DATE: {CURRENT_DATE}** — ONLY research current information. Check for deprecation warnings. If a library/framework has a newer standard (e.g. CRA → Vite, pip → uv), reference the current approach.
    - Read the current assignment: {ASSIGNMENT_DIR}/question.md (to understand context without giving away the solution)
    - Research the concept online to find the MOST COMMON confusion points
    - Design a micro-exercise that:
@@ -444,6 +477,7 @@ task(category="writing", run_in_background=false, prompt="
 3. REQUIRED TOOLS: read, write
 
 4. MUST DO:
+   - **CURRENT DATE: {CURRENT_DATE}** — Use current, real-world examples. Avoid outdated patterns or deprecated APIs.
    - Read the current assignment to understand what's been covered
    - Create 2-3 smaller exercises that target the specific area the user is struggling with
    - Each should be solvable in 5-15 minutes
@@ -453,6 +487,8 @@ task(category="writing", run_in_background=false, prompt="
 5. MUST NOT:
    - Do NOT repeat the same problems from the main assignment
 ")
+```
+
 ```
 
 ### 3.2 Track All Interactions
@@ -502,6 +538,7 @@ task(category="unspecified-high", run_in_background=false, timeout=300000, promp
 3. REQUIRED TOOLS: google_search, websearch_web_search_exa, context7_query_docs, read, write
 
 4. MUST DO:
+   - **CURRENT DATE: {CURRENT_DATE}** — ONLY use current, real-world scenarios. Avoid outdated APIs, deprecated libraries, or superseded best practices. Research what's current in the industry for this topic.
    - Read the topic-roadmap.md: {TOPICS_DIR}/{topic}/topic-roadmap.md
    - Read the previous assignment(s) to ensure progression: {ASSIGNMENT_DIR}
    - Read the user's learning preferences and history from {SKILL_PREFS}
