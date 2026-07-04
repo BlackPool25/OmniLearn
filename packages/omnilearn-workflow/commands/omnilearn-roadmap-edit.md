@@ -75,6 +75,7 @@ This command performs the same rigorous research-backed process as `/omnilearn-r
     │       └── new-roadmap-draft.md        ← Draft of updated roadmap
     └── topics/                             ← MUST be preserved — never delete or alter topic-progress.md, assignments/, or runs/
         └── <topic-name>/
+            ├── topic-explanation.md        ← Theory foundation (read before assignments)
             ├── topic-progress.md           ← 🔑 THE source of truth for what the user has done
             ├── assignments/                ← All assignment work the user has completed
             └── runs/                       ← Learning session logs

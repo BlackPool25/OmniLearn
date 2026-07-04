@@ -15,8 +15,8 @@ description: Start an interactive learning session. Generates hands-on assignmen
 
 ## Core Learning Philosophy
 
-**The user learns by doing, not by reading.** Every topic produces:
-1. A **topic explanation** — concise, practical overview (just enough context)
+**The user learns by doing — but needs the right theoretical foundation first.** Every topic produces:
+1. **`topic-explanation.md`** — Concise theory: TL;DR → core concepts → annotated examples → common pitfalls → best practices. The minimum viable theory you need before touching code.
 2. **Hands-on assignments** — increasing difficulty: basic → intermediate → real-world
 3. **Test scripts** — automated validation of the user's solution
 4. **Scaffold code** — starter files so they can jump straight into coding
@@ -44,6 +44,7 @@ The goal metric: **Can the user apply what they learned to real-world problems t
 └── topics/
     └── <topic-name>/                       ← e.g., "error-handling", "neural-networks"
         ├── topic-roadmap.md                ← Detailed subtopic roadmap (created on-demand)
+        ├── **topic-explanation.md**        ← ← 🔑 THEORY: concise concept explanation (TL;DR → concepts → examples → pitfalls → best practices)
         ├── topic-progress.md               ← 🔑 PROGRESS LIVES HERE: assignment status, sessions, skills demonstrated
         ├── assignments/
         │   ├── 01-<concept-basics>/
@@ -255,7 +256,49 @@ task(category="deep", run_in_background=false, timeout=600000, prompt="
    - Each builds on the previous. More than 3 can be created if the user needs extra practice or the topic is deep.
    - Final assignment should be a mini-project or real-world scenario
    
-   STEP 3 — Create Assignment 1 (the first one) at:
+   STEP 3 — Create topic-explanation.md at:
+     {TOPICS_DIR}/{topic}/topic-explanation.md
+   
+   This is the THEORETICAL FOUNDATION the user reads BEFORE attempting assignments.
+   It must be concise but complete — the minimum viable theory to understand the topic.
+   Use this proven format (based on Diátaxis framework + developer learning research):
+   
+   # {topic}
+   
+   ## TL;DR
+   One paragraph. What this is and why it matters in the real world. Assume the user is scanning.
+   
+   ## Core Concepts
+   3-5 key concepts explained concisely. Each concept gets 2-3 sentences max. Use **bold** for terminology being introduced.
+   - **{Concept 1}**: What it is. Why it exists. How it connects to other concepts here.
+   - **{Concept 2}**: ...
+   
+   ## How It Works (with Examples)
+   Annotated code/example blocks showing the concept in action. Use the Diátaxis "Explanation" quadrant — explain WHY each line matters, not just WHAT it does.
+   
+   ```{language}
+   # Annotated example with numbered comments
+   ```
+   
+   > **Note:** If the topic isn't code (e.g., system design, ML theory), use diagrams described in text or real-world analogies.
+   
+   ## Common Pitfalls
+   Table format for scannability:
+   
+   | Pitfall | Why It Happens | How to Avoid |
+   |---------|---------------|--------------|
+   | {mistake} | {root cause} | {solution} |
+   
+   ## Best Practices
+   3-5 bullet points on how this is used in production / real-world scenarios. This bridges theory to the assignments.
+   
+   ## Key Takeaways
+   3-5 bullet points the user should remember after reading. These are memory anchors for the assignments.
+   
+   ## Ready to Practice?
+   Brief bridge sentence to Assignment 1: "Now that you understand {concept}, open assignment 01-{name} to apply it."
+   
+   STEP 4 — Create Assignment 1 (the first one) at:
      {TOPICS_DIR}/{topic}/assignments/01-{concept}/
    
    Create these files:
@@ -290,9 +333,9 @@ task(category="deep", run_in_background=false, timeout=600000, prompt="
      - Common mistakes and how to avoid them
      - Real-world connections
    
-   STEP 4 — Create topic-progress.md at:
-     {TOPICS_DIR}/{topic}/topic-progress.md
-   
+STEP 5 — Create topic-progress.md at:
+   {TOPICS_DIR}/{topic}/topic-progress.md
+
    This is the AUTHORITATIVE progress tracker for this topic. Structure:
    
    # Progress: {topic}
@@ -318,9 +361,10 @@ task(category="deep", run_in_background=false, timeout=600000, prompt="
    - Add topic entry with status 🔵 In Progress and a link to topic-progress.md
 
 5. MUST NOT DO:
-   - Do NOT create all assignments at once — only create the first one. Subsequent assignments are generated on-demand as the user progresses.
+   - Do NOT create all assignments at once — only the first one. Subsequent assignments are generated on-demand as the user progresses.
    - Do NOT make assignments purely theoretical — use real-world scenarios
    - Do NOT skip the scaffold — the user should be able to start coding immediately
+   - Do NOT make topic-explanation.md too verbose — keep it scannable. If a section takes more than 2 minutes to read, it's too long.
    - Do NOT use any external packages that aren't standard library without noting it
    - Do NOT create assignments that are too easy (basic concept application) or too hard (leaps without foundation)
    - Do NOT leave TODOs in scaffold that require making unrelated architectural decisions
@@ -337,6 +381,7 @@ task(category="deep", run_in_background=false, timeout=600000, prompt="
 
 After completion, verify:
 - topic-roadmap.md exists with proper structure
+- **topic-explanation.md exists with all required sections (TL;DR, Core Concepts, Examples, Pitfalls, Best Practices, Takeaways)**
 - Assignment 1 exists with all 4 files (question.md, test, scaffold, solution-guide.md)
 - Test script is syntactically valid (run a quick check)
 
@@ -362,7 +407,10 @@ Read the assignment files for the current topic:
 │                                                                   │
 │  {brief description of the assignment}                           │
 │                                                                   │
+│  📖 Start here: topic-explanation.md — read the theory first     │
+│                                                                   │
 │  Files:                                                           │
+│  • Theory: {SKILL_DIR}/topics/{topic}/topic-explanation.md       │
 │  • Question: {SKILL_DIR}/topics/{topic}/assignments/             │
 │              01-{name}/question.md                                │
 │  • Scaffold: (same directory)/scaffold/                           │
@@ -370,7 +418,8 @@ Read the assignment files for the current topic:
 │  • Solution guide: (same directory)/solution-guide.md             │
 │                                                                   │
 │  To work on this:                                                 │
-│  1. Read the question.md carefully                                │
+│  1. Read topic-explanation.md for the concepts                    │
+│  2. Read the question.md carefully                                │
 │  2. Use the scaffold to write your solution                       │
 │  3. Run the test to verify your solution                          │
 │  4. Ask me questions if you're stuck                              │
@@ -723,6 +772,8 @@ If no git repo: ask if user wants to initialize one (same as /omnilearn-roadmap)
 | Skill roadmap exists | 0 | Tell user to run /omnilearn-roadmap first |
 | User preferences read | 0 | Read the files |
 | Topic roadmap exists (if needed) | 1.4 | Create it via deep subagent |
+| topic-explanation.md exists with all sections (TL;DR, Concepts, Examples, Pitfalls, Best Practices, Takeaways) | 1.4 | Re-generate — topic-explanation.md is mandatory |
+| topic-explanation.md is scannable (not verbose) | 1.4 | Trim to essential theory only |
 | Assignment 1 exists (question, test, scaffold, solution) | 1.4 | Fix incomplete assignment |
 | Assignment tests are syntactically valid | 1.4 | Quick syntax check, fix if broken |
 | topic-progress.md created when topic roadmap is made | 1.4 | Create it with proper structure |

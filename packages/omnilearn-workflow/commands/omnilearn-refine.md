@@ -39,6 +39,7 @@ Both scenarios follow the same core flow: research → analyze → produce struc
 └── topics/
     └── <topic>/
         ├── topic-roadmap.md                 ← Will be updated if refined
+        ├── topic-explanation.md             ← Theory foundation (updated if refined)
         ├── assignments/                     ← May be added to if needed
         └── runs/
 ```

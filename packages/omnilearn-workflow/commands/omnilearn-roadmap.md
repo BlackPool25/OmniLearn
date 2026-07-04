@@ -32,6 +32,7 @@ description: Create a comprehensive, real-world-ready learning roadmap for any s
     └── topics/                                   ← Topics in the roadmap (populated during learning)
         └── <topic-name>/                         ← Each topic has its own progress tracking
             ├── topic-roadmap.md                  ← Detailed subtopic roadmap (created on-demand)
+            ├── **topic-explanation.md**          ← ← 🔑 THEORY: TL;DR → concepts → examples → pitfalls (read this first)
             ├── topic-progress.md                 ← Per-topic progress: assignments status, sessions
             ├── assignments/                      ← Hands-on assignments (generated during learning)
             │   ├── 01-<concept>/
