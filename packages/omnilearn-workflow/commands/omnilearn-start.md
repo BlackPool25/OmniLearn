@@ -339,13 +339,46 @@ task(category="deep", run_in_background=false, timeout=600000, prompt="
      - Import/require statements already in place
      - Can be empty scaffold if topic is conceptual
    
-   d) solution-guide.md:
-     - Complete reference solution (code)
-     - Explanation of the solution approach
-     - Why certain choices were made
-     - Alternative approaches
-     - Common mistakes and how to avoid them
-     - Real-world connections
+   d) solution-guide.md — CRITICAL: Must be researched, accurate, and complete.
+   
+      BEFORE writing the solution:
+      1. Use google_search / context7_query-docs to research the CORRECT approach for this specific problem.
+      2. Verify your solution compiles/runs correctly — test it mentally or note any assumptions.
+      3. Cross-reference with topic-explanation.md to ensure consistency.
+      4. If the topic involves a library/framework, check official docs via context7 to confirm API accuracy.
+      
+      The solution-guide.md must have this structure:
+      
+      ## Solution Overview
+      - What approach was taken and why (1 paragraph)
+      - Key decisions made and the tradeoffs considered
+      
+      ## Complete Solution
+      ```{language}
+      # The full, working solution code
+      # Each section commented with WHY, not just WHAT
+      ```
+      
+      ## Step-by-Step Explanation
+      - Break the solution into logical steps
+      - For each step: what it does, why it's done this way, what would happen if you did it differently
+      - Reference the topic-explanation.md concepts being applied
+      
+      ## Edge Cases Handled
+      - List edge cases the solution handles
+      - What would break if not handled
+      
+      ## Alternative Approaches
+      - At least one alternative solution approach
+      - Why the main approach was chosen over alternatives
+      
+      ## Common Mistakes
+      - 3-5 specific mistakes learners make on this type of problem
+      - How to identify and fix each one
+      
+      ## Real-World Notes
+      - How this solution would differ in a production codebase
+      - Performance, security, or maintainability considerations
    
 STEP 5 — Create topic-progress.md at:
    {TOPICS_DIR}/{topic}/topic-progress.md
@@ -382,6 +415,8 @@ STEP 5 — Create topic-progress.md at:
    - Do NOT use any external packages that aren't standard library without noting it
    - Do NOT create assignments that are too easy (basic concept application) or too hard (leaps without foundation)
    - Do NOT leave TODOs in scaffold that require making unrelated architectural decisions
+   - **Do NOT write solutions without researching first** — use google_search or context7 to verify API syntax, library behavior, and best practices before writing solution-guide.md
+   - **Do NOT guess** — if you're unsure how a library function works, look it up via context7. Guesses lead to inaccurate solutions.
 
 6. CONTEXT:
    - Skill: {skill}
@@ -654,17 +689,50 @@ task(category="unspecified-high", run_in_background=false, timeout=300000, promp
      - TODO markers for user implementation
      - All necessary imports/includes set up
    
-   d) solution-guide.md:
-     - Complete solution
-     - Explanation of approach
-     - Alternative solutions' discussion
-     - Real-world production considerations
-     - Common mistakes
+   d) solution-guide.md — CRITICAL: Must be researched and accurate.
+   
+      BEFORE writing:
+      1. Use google_search / context7_query-docs to research the correct approach.
+      2. Verify the solution works — test mentally or note assumptions.
+      3. Cross-reference with previous solution-guide.md files to maintain consistency.
+      
+      Structure:
+      
+      ## Solution Overview
+      - Approach taken, key decisions, tradeoffs
+      
+      ## Complete Solution
+      ```{language}
+      # Full working code with WHY comments, not just WHAT
+      ```
+      
+      ## Step-by-Step Explanation
+      - Logical steps with reasoning for each
+      - What changes at this difficulty level vs previous assignments
+      
+      ## Edge Cases Handled
+      - What was considered and why
+      
+      ## Alternative Approaches
+      - Other valid solutions and when to use them
+      
+      ## Common Mistakes
+      - Specific errors learners make at this difficulty level
+      
+      ## Production Notes
+      - How this scales, performs, or differs in real codebases
 
-5. MUST NOT DO:
+5. MUST DO (research before generation):
+   - **Research FIRST** — Use context7 or google_search to verify your solution approach before writing
+   - **Cross-reference** with topic-explanation.md and prior solution-guide.md files
+   - **Verify accuracy** — If you're unsure about API syntax or behavior, look it up. Do not guess.
+   
+6. MUST NOT DO:
    - Do NOT make the next assignment a repetition of the previous one
    - Do NOT skip difficulty progression
+   - Do NOT write solutions without researching first
    - Do NOT use external non-standard dependencies without noting it in scaffold setup
+   - Do NOT guess API signatures — use context7 to verify
 
 6. CONTEXT:
    - Skill: {skill}
