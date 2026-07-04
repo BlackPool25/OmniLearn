@@ -15,7 +15,7 @@
   "license": "MIT",
   "author": "BlackPool25",
   "bin": {
-    "omnilearn-init": "./bin/install.js"
+    "omnilearn-init": "bin/install.js"
   },
   "files": [
     "bin/",
