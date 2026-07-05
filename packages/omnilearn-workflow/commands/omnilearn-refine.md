@@ -39,7 +39,7 @@ Both scenarios follow the same core flow: research → analyze → produce struc
 └── topics/
     └── <topic>/
         ├── topic-roadmap.md                 ← Will be updated if refined
-        ├── topic-explanation.md             ← Theory foundation (updated if refined)
+        ├── topic-explanation.md             ← Theory: Expert-grade deep-dive (context hook → progressive layers → annotated examples → misconceptions → checkpoints) — updated if refined
         ├── topic-progress.md                ← Progress state (preserved)
         ├── assignments/                     ← May be added to if needed
         │   ├── 01-<concept>/

@@ -32,7 +32,7 @@ description: Create a comprehensive, real-world-ready learning roadmap for any s
     └── topics/                                   ← Topics in the roadmap
         └── <topic-name>/                         ← One per topic
             ├── topic-roadmap.md                  ← Detailed subtopic roadmap
-            ├── topic-explanation.md              ← Theory: TL;DR → concepts → examples → pitfalls
+            ├── topic-explanation.md              ← Theory: Expert-grade deep-dive (context hook → progressive layers → annotated examples → misconceptions → checkpoints)
             ├── topic-progress.md                 ← 🔑 Progress: assignments, sessions, skills
             ├── assignments/
             │   ├── 01-<concept>/

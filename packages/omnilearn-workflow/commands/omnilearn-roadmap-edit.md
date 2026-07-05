@@ -76,7 +76,7 @@ This command performs the same rigorous research-backed process as `/omnilearn-r
     └── topics/                             ← MUST be preserved — never delete or alter
         └── <topic-name>/
             ├── topic-roadmap.md
-            ├── topic-explanation.md        ← Theory foundation (read before assignments)
+            ├── topic-explanation.md        ← Theory: Expert-grade deep-dive (context hook → progressive layers → annotated examples → misconceptions → checkpoints)
             ├── topic-progress.md           ← 🔑 Source of truth for user progress
             ├── assignments/                ← MUST NOT be modified
             │   ├── 01-<concept>/

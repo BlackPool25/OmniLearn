@@ -30,7 +30,7 @@ description: Start an interactive learning session. Generates hands-on assignmen
 
 ### What Every Topic Produces
 
-1. **`topic-explanation.md`** — Concise theory: TL;DR → core concepts → annotated examples → common pitfalls → best practices. The minimum viable theory before touching code.
+1. **`topic-explanation.md`** — Expert-grade theory explainer: context hook → progressive layers (simple→complex) → annotated examples → misconceptions → checkpoints. Each layer is self-contained and correct; they build up WITHOUT assuming prior technical depth.
 2. **Hands-on assignments** — calibrated difficulty: baseline → adjusted based on performance. NOT a fixed ladder.
 3. **Test scripts** — immediate feedback so the user knows if they're on track.
 4. **Scaffold code** — starter files so they jump straight into coding, not boilerplate.
@@ -58,7 +58,7 @@ The goal metric: **Can the user apply what they learned to real-world problems t
 └── topics/
     └── <topic-name>/                       ← e.g., "error-handling", "neural-networks"
         ├── topic-roadmap.md                ← Detailed subtopic roadmap (created on-demand)
-        ├── **topic-explanation.md**        ← ← 🔑 THEORY: concise concept explanation (TL;DR → concepts → examples → pitfalls → best practices)
+        ├── **topic-explanation.md**        ← ← 🔑 THEORY: Expert-grade explanation (context hook → progressive layers 1→2→3 → annotated examples → misconceptions → checkpoints → bridge to assignments)
         ├── topic-progress.md               ← 🔑 PROGRESS LIVES HERE: assignment status, sessions, skills demonstrated
         ├── assignments/
         │   ├── 01-<concept-basics>/
@@ -275,45 +275,107 @@ task(category="deep", run_in_background=false, timeout=600000, prompt="
      {TOPICS_DIR}/{topic}/topic-explanation.md
    
    This is the THEORETICAL FOUNDATION the user reads BEFORE attempting assignments.
-   It must be concise but complete — the minimum viable theory to understand the topic.
-   Use this proven format (based on Diátaxis framework + developer learning research):
+   
+   **CRITICAL PEDAGOGY RULES** (based on cognitive load theory + expert teaching research):
+   - **One-Level-Down Rule**: Start one level simpler than you think the user needs. You can always go deeper; you cannot undo confusion once it sets in. Each layer must be a correct (if simplified) mental model.
+   - **Unpack → Complexity → Repack**: Deconstruct the concept to its essence, progressively add real-world constraints, then reconstruct into a coherent mental model the user can carry forward.
+   - **Assume Nothing**: Make ALL prerequisites explicit. The user is here to LEARN. Do not assume they know the surrounding jargon unless you stated it as a prerequisite.
+   - **One New Idea at a Time**: Working memory holds ~4 chunks. Never introduce multiple new concepts in the same paragraph.
+   - **Concrete Before Abstract**: Show the full working example FIRST, then explain why it works. Humans learn patterns, then rules.
+   - **Address Misconceptions Proactively**: For every concept, anticipate the 2-3 most common confusions and address them BEFORE the user gets confused.
+   - **Active > Passive**: Embed quick checkpoints. The user should pause, think, or answer before moving on.
+   - **The Completeness Test**: Each layer must give a correct mental model IN ISOLATION. Layer 1 must not contradict Layer 3 — it's a simplified version of the same truth.
+   
+   Use this format:
    
    # {topic}
+
+   ⏱️ Estimated reading time: {X}-{Y} minutes (varies by your depth preference — Layer 1 alone is ~3 min)
    
-   ## TL;DR
-   One paragraph. What this is and why it matters in the real world. Assume the user is scanning.
+   ## Why This Matters
+   Start with a problem the reader has felt. A concrete situation: "You're building X and you notice Y behavior. You try Z but it doesn't work. That's because..." 
    
-   ## Core Concepts
-   3-5 key concepts explained concisely. Each concept gets 2-3 sentences max. Use **bold** for terminology being introduced.
-   - **{Concept 1}**: What it is. Why it exists. How it connects to other concepts here.
-   - **{Concept 2}**: ...
+   **Hook them with the pain this concept solves.** Do NOT start with a definition. Start with the human situation.
    
-   ## How It Works (with Examples)
-   Annotated code/example blocks showing the concept in action. Use the Diátaxis "Explanation" quadrant — explain WHY each line matters, not just WHAT it does.
+   > Example: Instead of "FastAPI is a modern web framework for Python", say: "You've built a Python script that processes data. Now you need to expose it as an API so others can call it. You could use Flask, but you notice it doesn't validate request data, your docs are hand-written, and async endpoints need boilerplate. FastAPI solves these three problems in one go."
+   
+   ## Prerequisites
+   Explicit checklist of what the user should already know. Numbered. No surprises.
+   ```
+   Before reading this, you should be comfortable with:
+   1. {concept A} — we'll use it to build {new concept}
+   2. {concept B} — understanding this makes {topic} click faster
+   3. {tool/library C} — basic usage required
+   
+   Not there yet? Review: {link to prerequisite topic or resource}
+   ```
+   **Be honest here.** If you list something as a prerequisite and it actually isn't needed, you'll scare the user off. If you skip listing something that IS needed, the user will get confused.
+   
+   ## Layer 1: The Core Idea (One Level Down)
+   
+   The simplest correct explanation. If you were explaining this to someone who knows the prerequisites but nothing more about this topic.
+   
+   Describe the concept using:
+   - An analogy to something familiar (if one exists and is correct)
+   - The minimal working example — no edge cases, no error handling
+   - The ONE thing that makes this concept different from what the user already knows
+   
+   Use **bold** for new terminology. Define each term inline immediately.
+   
+   > **Keep it to 1-2 paragraphs max.** If you need more, you're not one level down enough.
+   
+   ## Layer 2: How It Actually Works
+   
+   Now add real-world constraints. Pick up from Layer 1 and show the same concept with:
+   - The actual mechanics (code, system interaction, protocol details)
+   - Concrete syntax / implementation patterns
+   - How the pieces connect (architecture flow, data flow, call sequence)
+   - **Why** each piece exists (not just what it does)
+   
+   For technical topics: include annotated code blocks where every line/block is explained with a comment on WHY it's there.
    
    ```{language}
-   # Annotated example with numbered comments
+   # Line 1: We do X because... (REASON, not description)
+   # Line 2: This handles Y edge case because...
+   # Line 3: Without this, Z would break because...
    ```
    
-   > **Note:** If the topic isn't code (e.g., system design, ML theory), use diagrams described in text or real-world analogies.
+   > **If the topic isn't code** (e.g., system design, ML theory): use concrete diagrams described in text. "The flow goes: Client → Load Balancer → Service A. The load balancer exists because..." Show the sequence explicitly.
    
-   ## Common Pitfalls
-   Table format for scannability:
+   ## Layer 3: Real-World Production Context
    
-   | Pitfall | Why It Happens | How to Avoid |
-   |---------|---------------|--------------|
-   | {mistake} | {root cause} | {solution} |
+   Now go deeper. What changes when this runs at scale, in production, with real traffic?
    
-   ## Best Practices
-   3-5 bullet points on how this is used in production / real-world scenarios. This bridges theory to the assignments.
+   - **Common Misconceptions** (2-3, proactively addressed):
+     | What People Think | What Actually Happens | Why The Confusion |
+     |------------------|----------------------|-------------------|
+     | "X does Y" | Actually X does Z because..." | "This confusion comes from..." |
    
-   ## Key Takeaways
-   3-5 bullet points the user should remember after reading. These are memory anchors for the assignments.
+   - **Edge Cases & Failure Modes**: What breaks and why. How to handle it.
+   - **Trade-offs**: What you gain vs what you sacrifice by using this approach.
+   - **Performance & Security**: How this behaves under load. Security considerations.
+   - **Production Patterns**: How experienced practitioners actually use this (tools, configs, monitoring).
+   
+   > **Don't scare the user.** Frame these as: "Now that you understand the basics, here's how experienced engineers think about this. You don't need to master all of this today, but knowing these patterns will save you hours of debugging."
+   
+   ## Learning Checkpoints
+   
+   Quick verification questions. The user should be able to answer these after reading. They are NOT graded — they're self-checks.
+   
+   ```
+   1. {Concept name}: In your own words, explain what this does and why it exists.
+   2. {Scenario question}: If {situation X} happens, what would {concept} do?
+   3. {Compare/contrast}: How is {this concept} different from {similar concept the user might confuse it with}?
+   
+   If you can't answer these, re-read Layer 1 and Layer 2 above. If you're still unsure, ask me to clarify before starting the assignment.
+   ```
    
    ## Ready to Practice?
-   Brief bridge sentence to Assignment 1: "Now that you understand {concept}, open assignment 01-{name} to apply it."
+   Brief bridge sentence connecting theory to the first assignment. Reference specific concepts from the explanation:
    
-   STEP 4 — Create Assignment 1 (the first one) at:
+    "Now that you understand {concept from Layer 1} and {pattern from Layer 2}, open assignment 01-{name} to apply it. Pay special attention to {specific gotcha from Layer 3}."
+    
+    STEP 4 — Create Assignment 1 (the first one) at:
      {TOPICS_DIR}/{topic}/assignments/01-{concept}/
    
    Create these files:
@@ -430,7 +492,7 @@ STEP 5 — Create topic-progress.md at:
    - Do NOT create all assignments at once — only the first one. Subsequent assignments are generated on-demand as the user progresses.
    - Do NOT make assignments purely theoretical — use real-world scenarios
    - Do NOT skip the scaffold — the user should be able to start coding immediately
-   - Do NOT make topic-explanation.md too verbose — keep it scannable. If a section takes more than 2 minutes to read, it's too long.
+   - Do NOT make topic-explanation.md a wall of text — use whitespace, headings, examples, and checkpoints to break it up. Each layer should take 3-5 minutes to read. The full document is a thorough deep-dive, not a skim.
    - Do NOT use any external packages that aren't standard library without noting it
    - Do NOT create assignments that are too easy (basic concept application) or too hard (leaps without foundation)
    - Do NOT leave TODOs in scaffold that require making unrelated architectural decisions
@@ -450,7 +512,7 @@ STEP 5 — Create topic-progress.md at:
 
 After completion, verify:
 - topic-roadmap.md exists with proper structure
-- **topic-explanation.md exists with all required sections (TL;DR, Core Concepts, Examples, Pitfalls, Best Practices, Takeaways)**
+- **topic-explanation.md exists with all required sections (Why This Matters, Prerequisites, Layer 1, Layer 2, Learning Checkpoints, Ready to Practice)**
 - Assignment 1 exists with all 4 files (question.md, test, scaffold, solution-guide.md)
 - Test script is syntactically valid (run a quick check)
 
@@ -465,7 +527,7 @@ If anything is missing, fix via session continuation: `task(task_id="<session_id
 >
 > 📖 **{SKILL_DIR}/topics/{topic}/topic-explanation.md**
 >
-> This covers: TL;DR → Core Concepts → Examples → Pitfalls → Best Practices
+> This covers: Why This Matters → Prerequisites → Layer 1 (Core Idea) → Layer 2 (How It Works) → Layer 3 (Production Context) → Learning Checkpoints → Ready to Practice
 > It should take about 5-10 minutes to read.
 >
 > Let me know when you've finished reading, or ask me questions about anything that's unclear."
@@ -921,8 +983,8 @@ If no git repo: ask if user wants to initialize one (same as /omnilearn-roadmap)
 | Skill roadmap exists | 0 | Tell user to run /omnilearn-roadmap first |
 | User preferences read | 0 | Read the files |
 | Topic roadmap exists (if needed) | 1.4 | Create it via deep subagent |
-| topic-explanation.md exists with all sections (TL;DR, Concepts, Examples, Pitfalls, Best Practices, Takeaways) | 1.4 | Re-generate — topic-explanation.md is mandatory |
-| topic-explanation.md is scannable (not verbose) | 1.4 | Trim to essential theory only |
+| topic-explanation.md exists with all sections (Why This Matters, Prerequisites, Layer 1, Layer 2, Layer 3, Learning Checkpoints, Ready to Practice) | 1.4 | Re-generate — topic-explanation.md is mandatory |
+| topic-explanation.md is a proper deep-dive (not shallow, not a wall of text) | 1.4 | Add more depth or break into sections with whitespace and examples |
 | Assignment 1 exists (question, test, scaffold, solution) | 1.4 | Fix incomplete assignment |
 | Assignment tests are syntactically valid | 1.4 | Quick syntax check, fix if broken |
 | topic-progress.md created when topic roadmap is made | 1.4 | Create it with proper structure |
