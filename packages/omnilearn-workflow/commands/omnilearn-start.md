@@ -265,10 +265,11 @@ task(category="deep", run_in_background=false, timeout=600000, prompt="
    
    ### 2. ...
    
-   ## Assignment Structure
-   - N assignments with progressive difficulty: Basic → Intermediate → Real-World
-   - Each builds on the previous. More than 3 can be created if the user needs extra practice or the topic is deep.
-   - Final assignment should be a mini-project or real-world scenario
+   ## Assignment Structure (Adaptive — Determined During Learning)
+   - **Assignments are NOT pre-defined.** They are generated on-demand based on the user's performance, ZPD, and pace.
+   - The general trajectory is: Baseline → Stretch → Real-World, but the number of assignments and their specific difficulty is determined adaptively.
+   - If the user breezes through, they get fewer, harder assignments. If they struggle, they get more scaffolding and intermediate bridging exercises.
+   - The final assignment will be a real-world scenario that integrates this topic with other skills the user knows.
    
    STEP 3 — Create topic-explanation.md at:
      {TOPICS_DIR}/{topic}/topic-explanation.md
@@ -334,10 +335,28 @@ task(category="deep", run_in_background=false, timeout=600000, prompt="
      - Use the simplest possible test setup
    
    c) scaffold/ directory with starter files:
-     - Minimal code structure to get started
-     - Comments marking where to write code // TODO: or # TODO:
-     - Import/require statements already in place
-     - Can be empty scaffold if topic is conceptual
+   
+      GOLDEN RULE: The user must be able to go from `cd scaffold/` to `running the test` in ONE command.
+      If the assignment isn't testing setup/environment skills, automate ALL of that.
+   
+      - Include a setup script (`setup.sh` for Unix, `setup.ps1` for Windows) that:
+        * Creates virtual environment (Python: `python -m venv .venv`), or installs deps (Node: `npm install`)
+        * Installs required packages
+        * Prints "Environment ready! Run this command to start: ..."
+      - OR include a one-liner in the scaffold README: `python -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt`
+      - Include `requirements.txt` / `package.json` with ALL needed deps pre-listed
+      - Minimal code structure — only the files the user needs to touch
+      - Comments marking where to write code // TODO: or # TODO:
+      - Import/require statements already in place
+      - Cross-skill integration: if the user knows {related_skill}, structure the scaffold to use familiar patterns from it
+      - If the topic is NOT a programming topic (e.g., system design), provide templates or worksheets instead
+   
+      ANNOYING THINGS TO NEVER DO:
+      - Do NOT make the user manually create a venv or install packages unless the assignment is specifically about that
+      - Do NOT leave unlisted imports — if a package is needed, it must be in requirements.txt / package.json
+      - Do NOT require the user to set up databases, API keys, or external services without providing clear instructions or a docker-compose.yml
+      - Do NOT leave configuration files empty or incomplete — provide working defaults
+      - Do NOT make the user hunt for the right Python/Node version — specify it in the scaffold or use `.nvmrc`/`.python-version`
    
    d) solution-guide.md — CRITICAL: Must be researched, accurate, and complete.
    
@@ -425,6 +444,7 @@ STEP 5 — Create topic-progress.md at:
    - User experience level: {from preferences}
    - User learning style: {from preferences}
    - Skill conventions (package manager, project structure, deps, testing setup): {from SkillConventions.md — read before generating scaffold}
+   - Cross-skill context (other skills user knows, so scaffold can use familiar patterns): {from cross-skill inventory}
 ")
 ```
 
@@ -434,9 +454,28 @@ After completion, verify:
 - Assignment 1 exists with all 4 files (question.md, test, scaffold, solution-guide.md)
 - Test script is syntactically valid (run a quick check)
 
-If anything is missing, fix via session continuation: `task(task_id="<session_id>", prompt="Fix: {missing element}")`
+If anything is missing, fix via session continuation: `task(task_id="<session_id>", prompt="Fix: {missing element}")"
 
-**Then proceed to Phase 2.**
+## Phase 1.5: READINESS GATE — Teach Before Test
+
+**The user MUST read the theory before touching assignments.** This is non-negotiable.
+
+1. Present the topic-explanation.md to the user:
+> "Before we jump into coding, let's cover the concepts you need.
+>
+> 📖 **{SKILL_DIR}/topics/{topic}/topic-explanation.md**
+>
+> This covers: TL;DR → Core Concepts → Examples → Pitfalls → Best Practices
+> It should take about 5-10 minutes to read.
+>
+> Let me know when you've finished reading, or ask me questions about anything that's unclear."
+
+2. **Wait for the user to confirm they've read it.** Do NOT skip this step.
+   - If they ask questions → answer them (using diagnostic task pattern from Phase 3 if needed)
+   - If they say "I already know this" → ask 2 quick concept-checking questions to verify. If they pass, skip. If they fail, tell them to read it.
+   - If they say "ready" → proceed.
+
+3. **Only after confirmation** → proceed to Phase 2.
 
 ## Phase 2: ASSIGNMENT PRESENTATION
 
@@ -685,9 +724,18 @@ task(category="unspecified-high", run_in_background=false, timeout=300000, promp
      - Self-contained and runnable
    
    c) scaffold/ — Starter code:
-     - Minimal boilerplate
-     - TODO markers for user implementation
-     - All necessary imports/includes set up
+   
+      GOLDEN RULE: The user must go from `cd scaffold/` to running tests in ONE command.
+      
+      - Include setup script (`setup.sh` + `setup.ps1`) that auto-creates env + installs deps
+      - OR one-liner setup instructions in a README
+      - `requirements.txt` / `package.json` with ALL deps pre-listed
+      - Minimal boilerplate — only what the user needs to touch
+      - TODO markers for user implementation
+      - All necessary imports/includes set up
+      - If the user knows {related_skill} from SkillConventions.md, use familiar patterns
+      - Auto-setup: `python -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt`
+      - NEVER make the user manually install packages (unless assignment tests that skill)
    
    d) solution-guide.md — CRITICAL: Must be researched and accurate.
    
@@ -737,11 +785,12 @@ task(category="unspecified-high", run_in_background=false, timeout=300000, promp
 6. CONTEXT:
    - Skill: {skill}
    - Topic: {topic}
-   - Assignment number: {n}/3
-   - Difficulty: {basic/intermediate/real-world}
+   - Assignment number: {n}
+   - Difficulty: {current difficulty level}
    - Previous assignment concepts: {summary}
    - User performance on previous assignment: {observations}
    - Skill conventions (package manager, project structure, deps, testing setup): {from SkillConventions.md — MUST follow these when generating scaffold}
+   - Cross-skill context (other skills the user knows): {from cross-skill inventory — integrate these patterns into the scaffold if relevant}
 ")
 ```
 
