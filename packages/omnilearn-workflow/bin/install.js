@@ -57,7 +57,11 @@ const COMMANDS = [
   'omnilearn-refine.md',
 ];
 
-const PKG_VERSION = '1.0.15';
+const PKG_VERSION = '1.1.0';
+
+// Pinned versions for supply-chain transparency
+// Context7 MCP — official Upstash package for documentation lookup MCP
+const CONTEXT7_MCP_SPEC = '@upstash/context7-mcp@latest';
 
 // ─── Utilities ───
 
@@ -161,6 +165,51 @@ function isOmniLearnConfigured() {
   return fs.existsSync(OMNILEARN_CONFIG_PATH);
 }
 
+/**
+ * Confirm before running a remote installer script (curl | sh / bash).
+ * This is a supply-chain security measure: the user sees exactly what
+ * will be executed and can opt out before any code runs.
+ *
+ * @param {object} opts
+ * @param {string} opts.what    Human-readable label (e.g. "OpenCode")
+ * @param {string} opts.source  Provenance URL so user can audit
+ * @param {string} opts.command The exact shell command to run
+ * @param {boolean} autoYes     Skip confirmation if in --yes mode
+ * @returns {boolean} true if execution is approved
+ */
+async function confirmRemoteScript({ what, source, command }, autoYes) {
+  const warning = boxen(
+    [
+      `${pc.yellow('⚠')}  About to install ${pc.bold(what)}`,
+      '',
+      `${pc.dim('Source:')}  ${pc.cyan(source)}`,
+      `${pc.dim('Command:')} ${pc.dim(command.slice(0, 120) + (command.length > 120 ? '...' : ''))}`,
+      '',
+      `${pc.yellow('This will download and execute a script from the internet.')}`,
+      `${pc.dim('Review the source URL before proceeding.')}`,
+    ].join('\n'),
+    {
+      padding: { top: 0, bottom: 0, left: 2, right: 2 },
+      margin: { top: 0, bottom: 1 },
+      borderStyle: 'round',
+      borderColor: 'yellow',
+    },
+  );
+  console.log(warning);
+
+  if (autoYes) return true;
+
+  const ok = await confirm({
+    message: `Install ${what}?`,
+    initialValue: true,
+  });
+  if (isCancel(ok)) {
+    cancel('Installation cancelled');
+    process.exit(0);
+  }
+  return ok;
+}
+
 function readOmniLearnConfig() {
   try {
     const raw = fs.readFileSync(OMNILEARN_CONFIG_PATH, 'utf-8');
@@ -181,8 +230,23 @@ function isBunInstalled() {
 
 // ─── Steps ───
 
-async function installOpenCode() {
-  log.info('OpenCode is required. Installing now...');
+async function installOpenCode(autoYes) {
+  const approved = await confirmRemoteScript(
+    {
+      what: 'OpenCode',
+      source: 'https://opencode.ai/install',
+      command:
+        'curl -fsSL https://opencode.ai/install | bash',
+    },
+    autoYes,
+  );
+  if (!approved) {
+    log.warn('OpenCode install skipped. Install manually:');
+    log.info(`  ${pc.cyan('curl -fsSL https://opencode.ai/install | bash')}`);
+    return false;
+  }
+
+  log.info('Installing OpenCode...');
   const s = createSpinner();
   s.start('Downloading OpenCode...');
   try {
@@ -194,7 +258,7 @@ async function installOpenCode() {
     return true;
   } catch (err) {
     s.stop('OpenCode install failed');
-    log.error(`Could not install OpenCode automatically: ${err.message}`);
+    log.error(`Could not install OpenCode: ${err.message}`);
     log.info('Install manually:');
     log.info(`  ${pc.cyan('curl -fsSL https://opencode.ai/install | bash')}`);
     return false;
@@ -366,7 +430,7 @@ async function setupContext7MCP(configInfo) {
   }
 }
 
-async function ensureOhMyOpenAgent(configInfo) {
+async function ensureOhMyOpenAgent(configInfo, autoYes) {
   const { path: configPath, data: config } = configInfo;
 
   if (isOhMyOpenAgentInstalled(config)) {
@@ -397,7 +461,22 @@ async function ensureOhMyOpenAgent(configInfo) {
 
   // Check if Bun is available (required for oh-my-openagent install)
   if (!isBunAvailable()) {
-    log.info('Installing Bun (required for oh-my-openagent)...');
+    const bunApproved = await confirmRemoteScript(
+      {
+        what: 'Bun (JavaScript runtime)',
+        source: 'https://bun.sh',
+        command:
+          'curl -fsSL https://bun.sh/install | bash',
+      },
+      autoYes,
+    );
+    if (!bunApproved) {
+      log.warn('Bun install skipped. Install manually:');
+      log.info(`  ${pc.cyan('curl -fsSL https://bun.sh/install | bash')}`);
+      log.info(`  ${pc.cyan('bunx oh-my-openagent install')}`);
+      return false;
+    }
+
     const bs = createSpinner();
     bs.start('Installing Bun...');
     try {
@@ -649,7 +728,7 @@ async function install(autoYes = false) {
         process.exit(1);
       }
     }
-    const installed = await installOpenCode();
+    const installed = await installOpenCode(autoYes);
     if (!installed) process.exit(1);
   } else {
     log.success(`OpenCode found at ${pc.cyan(OPENCODE_CONFIG_DIR)}`);
@@ -663,7 +742,7 @@ async function install(autoYes = false) {
   // ── Step 3: oh-my-openagent ──
   log.step('3/5  Checking oh-my-openagent (multi-agent orchestration)');
   const refreshedConfig = readOpenCodeConfig();
-  await ensureOhMyOpenAgent(refreshedConfig);
+  await ensureOhMyOpenAgent(refreshedConfig, autoYes);
 
   // ── Step 4: Copy command files ──
   log.step('4/5  Installing OmniLearn commands');
