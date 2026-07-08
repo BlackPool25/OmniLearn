@@ -24,6 +24,7 @@ import {
   intro,
   outro,
   text,
+  select,
   confirm,
   spinner as createSpinner,
   isCancel,
@@ -44,6 +45,8 @@ const OPENCODE_CONFIG_DIR = path.join(
   'opencode',
 );
 const OPENCODE_COMMAND_DIR = path.join(OPENCODE_CONFIG_DIR, 'command');
+const OPENCODE_CONFIG_PATH = path.join(OPENCODE_CONFIG_DIR, 'opencode.json');
+const OPENCODE_CONFIGC_PATH = path.join(OPENCODE_CONFIG_DIR, 'opencode.jsonc');
 const OMNILEARN_CONFIG_PATH = path.join(OPENCODE_CONFIG_DIR, 'omnilearn.json');
 
 const COMMANDS = [
@@ -54,7 +57,9 @@ const COMMANDS = [
   'omnilearn-refine.md',
 ];
 
-const PKG_VERSION = '1.0.14';
+const PKG_VERSION = '1.0.15';
+
+// ─── Utilities ───
 
 function printVersion() {
   console.log(`omnilearn-workflow v${PKG_VERSION}`);
@@ -75,7 +80,9 @@ function printHelp() {
       `  1. Checks OpenCode is installed (offers to install if missing)`,
       `  2. Copies 5 command files to ~/.config/opencode/command/`,
       `  3. Makes them available as ${pc.cyan('/omnilearn-*')} commands in OpenCode`,
-      `  4. Optionally configures your learning directory right away`,
+      `  4. Configures Context7 MCP for documentation lookups`,
+      `  5. Checks for oh-my-openagent (multi-agent orchestration)`,
+      `  6. Optionally configures your learning directory right away`,
       '',
       `${pc.bold('After install:')}`,
       `  Open OpenCode and run:`,
@@ -94,15 +101,60 @@ function printHelp() {
 }
 
 function isOpenCodeInstalled() {
-  // Check by config directory existence
   if (fs.existsSync(OPENCODE_COMMAND_DIR)) return true;
-  // Also check PATH
   try {
     execSync('which opencode 2>/dev/null', { stdio: 'pipe' });
     return true;
   } catch {
     return false;
   }
+}
+
+function isBunAvailable() {
+  try {
+    execSync('which bun 2>/dev/null', { stdio: 'pipe' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function readOpenCodeConfig() {
+  const configPath = fs.existsSync(OPENCODE_CONFIG_PATH)
+    ? OPENCODE_CONFIG_PATH
+    : fs.existsSync(OPENCODE_CONFIGC_PATH)
+      ? OPENCODE_CONFIGC_PATH
+      : null;
+  if (!configPath) return { path: null, data: null };
+  try {
+    const raw = fs.readFileSync(configPath, 'utf-8');
+    return { path: configPath, data: JSON.parse(raw) };
+  } catch {
+    return { path: configPath, data: null };
+  }
+}
+
+function writeOpenCodeConfig(configPath, data) {
+  fs.writeFileSync(configPath, JSON.stringify(data, null, 2) + '\n');
+}
+
+function isContext7Configured(config) {
+  if (!config?.mcp) return false;
+  // Check all keys — Context7 could be named "context7", "ctx7", etc.
+  return Object.keys(config.mcp).some(
+    (key) =>
+      key.toLowerCase().includes('context7') ||
+      key.toLowerCase().includes('ctx7'),
+  );
+}
+
+function isOhMyOpenAgentInstalled(config) {
+  if (!config?.plugin) return false;
+  return config.plugin.some(
+    (p) =>
+      p.toLowerCase().includes('oh-my-openagent') ||
+      p.toLowerCase().includes('oh-my-opencode'),
+  );
 }
 
 function isOmniLearnConfigured() {
@@ -118,56 +170,45 @@ function readOmniLearnConfig() {
   }
 }
 
-async function detectMissingDeps() {
-  // Check for oh-my-openagent (optional but recommended)
-  const omoConfigPaths = [
-    path.join(OPENCODE_CONFIG_DIR, 'oh-my-openagent.jsonc'),
-    path.join(OPENCODE_CONFIG_DIR, 'oh-my-openagent.json'),
-  ];
-  const omoInstalled = omoConfigPaths.some((p) => fs.existsSync(p));
-
-  const deps = [];
-  if (!omoInstalled) {
-    deps.push({
-      name: 'oh-my-openagent',
-      desc: 'Multi-agent orchestration (enhances OpenCode)',
-      installCmd: 'bunx oh-my-openagent install',
-    });
+function isBunInstalled() {
+  try {
+    execSync('which bun 2>/dev/null', { stdio: 'pipe' });
+    return true;
+  } catch {
+    return false;
   }
-  return deps;
 }
 
+// ─── Steps ───
+
 async function installOpenCode() {
-  log.info('OpenCode not found. Installing now...');
+  log.info('OpenCode is required. Installing now...');
   const s = createSpinner();
   s.start('Downloading OpenCode...');
   try {
     execSync('curl -fsSL https://opencode.ai/install | bash', {
       stdio: 'pipe',
-      timeout: 60000,
+      timeout: 120000,
     });
     s.stop('OpenCode installed successfully');
     return true;
   } catch (err) {
     s.stop('OpenCode install failed');
-    log.error(
-      `Could not install OpenCode automatically: ${err.message}`,
-    );
-    log.info('Install manually: curl -fsSL https://opencode.ai/install | bash');
+    log.error(`Could not install OpenCode automatically: ${err.message}`);
+    log.info('Install manually:');
+    log.info(`  ${pc.cyan('curl -fsSL https://opencode.ai/install | bash')}`);
     return false;
   }
 }
 
-async function copyCommandFiles(autoYes) {
+async function copyCommandFiles(forceOverwrite) {
   const s = createSpinner();
 
-  // Ensure command directory exists
   if (!fs.existsSync(OPENCODE_COMMAND_DIR)) {
     fs.mkdirSync(OPENCODE_COMMAND_DIR, { recursive: true });
   }
 
-  // Check for existing commands
-  let existing;
+  let existing = [];
   try {
     existing = fs.readdirSync(OPENCODE_COMMAND_DIR)
       .filter((f) => f.startsWith('omnilearn-') && f.endsWith('.md'));
@@ -175,7 +216,7 @@ async function copyCommandFiles(autoYes) {
     existing = [];
   }
 
-  if (existing.length > 0 && !autoYes) {
+  if (existing.length > 0 && !forceOverwrite) {
     log.info(
       `Found ${existing.length} existing OmniLearn command(s): ${existing.join(', ')}`,
     );
@@ -188,8 +229,16 @@ async function copyCommandFiles(autoYes) {
       process.exit(0);
     }
     if (!shouldOverwrite) {
-      log.info('Existing commands preserved. Skipping install.');
+      log.info('Existing commands preserved. Skipping command install.');
       return 0;
+    }
+  }
+
+  if (forceOverwrite) {
+    // Remove existing before re-copy
+    for (const cmd of COMMANDS) {
+      const dest = path.join(OPENCODE_COMMAND_DIR, cmd);
+      try { fs.unlinkSync(dest); } catch {}
     }
   }
 
@@ -203,14 +252,13 @@ async function copyCommandFiles(autoYes) {
     const dest = path.join(OPENCODE_COMMAND_DIR, cmd);
 
     if (!fs.existsSync(src)) {
-      log.warn(`Source not found: ${cmd}`);
+      log.warn(`Source not found in package: ${cmd}`);
       failed++;
       continue;
     }
 
     try {
       fs.copyFileSync(src, dest);
-      // Ensure readable by owner/group
       fs.chmodSync(dest, 0o644);
       copied++;
     } catch (err) {
@@ -222,12 +270,188 @@ async function copyCommandFiles(autoYes) {
   s.stop(
     `Installed ${copied}/${COMMANDS.length} command(s)${failed > 0 ? ` (${failed} failed)` : ''}`,
   );
+
+  // Verify after copy
+  const afterCopy = COMMANDS.filter((cmd) =>
+    fs.existsSync(path.join(OPENCODE_COMMAND_DIR, cmd)),
+  ).length;
+  if (afterCopy === COMMANDS.length) {
+    log.success(`All ${COMMANDS.length} commands verified at ${pc.cyan(OPENCODE_COMMAND_DIR)}`);
+  } else {
+    log.warn(
+      `Only ${afterCopy}/${COMMANDS.length} commands found after install. Try running with --yes to force reinstall.`,
+    );
+  }
+
   return copied;
+}
+
+async function setupContext7MCP(configInfo) {
+  const { path: configPath, data: config } = configInfo;
+
+  if (!configPath || !config) {
+    log.warn('OpenCode config file not found — cannot auto-configure Context7 MCP.');
+    log.info('You can set it up later by running:');
+    log.info(`  ${pc.cyan('npx ctx7 setup --opencode')}`);
+    return false;
+  }
+
+  if (isContext7Configured(config)) {
+    // Find and show the context7 key name
+    const ctxKey = Object.keys(config.mcp).find(
+      (k) =>
+        k.toLowerCase().includes('context7') || k.toLowerCase().includes('ctx7'),
+    );
+    log.success(`Context7 MCP already configured as "${pc.cyan(ctxKey)}"`);
+    return true;
+  }
+
+  const shouldSetup = await confirm({
+    message:
+      'Context7 MCP not configured. OmniLearn uses it for documentation lookups. Set it up now?',
+    initialValue: true,
+  });
+  if (isCancel(shouldSetup)) {
+    cancel('Installation cancelled');
+    process.exit(0);
+  }
+  if (!shouldSetup) {
+    log.info('Skipping Context7 setup. You can configure it later by running:');
+    log.info(`  ${pc.cyan('npx ctx7 setup --opencode')}`);
+    return false;
+  }
+
+  // Try the official setup command first
+  const s = createSpinner();
+  s.start('Running Context7 setup...');
+  try {
+    execSync('npx ctx7 setup --opencode 2>/dev/null', {
+      stdio: 'pipe',
+      timeout: 30000,
+    });
+    s.stop('Context7 MCP configured via ctx7 CLI');
+    log.success('Context7 documentation MCP is now enabled in OpenCode');
+    return true;
+  } catch {
+    // Fall back to manual config
+    s.stop('Automatic setup unavailable — configuring manually');
+  }
+
+  // Manual config: add context7 to opencode.json
+  if (!config.mcp) config.mcp = {};
+
+  config.mcp.context7 = {
+    type: 'local',
+    command: ['npx', '-y', '@upstash/context7-mcp@latest'],
+    enabled: true,
+  };
+
+  const ws = createSpinner();
+  ws.start('Writing Context7 configuration...');
+  try {
+    writeOpenCodeConfig(configPath, config);
+    ws.stop('Context7 MCP added to OpenCode configuration');
+    log.success(
+      `Added to ${pc.cyan(path.basename(configPath))} — Context7 documentation MCP is now enabled`,
+    );
+    return true;
+  } catch (err) {
+    ws.stop('Failed to write config');
+    log.error(`Could not update config: ${err.message}`);
+    log.info('You can add it manually to opencode.json:');
+    log.info(
+      `  ${pc.dim('See: https://github.com/context7/context7-mcp#opencode')}`,
+    );
+    return false;
+  }
+}
+
+async function ensureOhMyOpenAgent(configInfo) {
+  const { path: configPath, data: config } = configInfo;
+
+  if (isOhMyOpenAgentInstalled(config)) {
+    log.success('oh-my-openagent plugin is registered in OpenCode');
+    return true;
+  }
+
+  const shouldInstall = await confirm({
+    message:
+      'Oh-My-OpenAgent not found. It provides multi-agent orchestration (Sisyphus) required by OmniLearn. Install it now?',
+    initialValue: true,
+  });
+  if (isCancel(shouldInstall)) {
+    cancel('Installation cancelled');
+    process.exit(0);
+  }
+  if (!shouldInstall) {
+    log.warn('oh-my-openagent is strongly recommended for OmniLearn.');
+    log.info('Install manually when ready:');
+    if (isBunAvailable()) {
+      log.info(`  ${pc.cyan('bunx oh-my-openagent install')}`);
+    } else {
+      log.info('  Install bun first:  curl -fsSL https://bun.sh/install | bash');
+      log.info(`  Then: bunx oh-my-openagent install`);
+    }
+    return false;
+  }
+
+  // Check if Bun is available (required for oh-my-openagent install)
+  if (!isBunAvailable()) {
+    log.info('Installing Bun (required for oh-my-openagent)...');
+    const bs = createSpinner();
+    bs.start('Installing Bun...');
+    try {
+      execSync('curl -fsSL https://bun.sh/install | bash', {
+        stdio: 'pipe',
+        timeout: 60000,
+      });
+      bs.stop('Bun installed');
+    } catch (err) {
+      bs.stop('Bun install failed');
+      log.error(`Could not install Bun: ${err.message}`);
+      log.info('Install manually:');
+      log.info(`  ${pc.cyan('curl -fsSL https://bun.sh/install | bash')}`);
+      log.info(`  ${pc.cyan('bunx oh-my-openagent install')}`);
+      return false;
+    }
+  }
+
+  // Install oh-my-openagent
+  const os = createSpinner();
+  os.start('Running oh-my-openagent installer...');
+  try {
+    execSync('bunx oh-my-openagent install --yes 2>/dev/null || bunx oh-my-openagent install', {
+      stdio: 'inherit',
+      timeout: 120000,
+    });
+    os.stop('oh-my-openagent installed');
+
+    // Refresh config after install
+    const refreshed = readOpenCodeConfig();
+    if (refreshed.data && !isOhMyOpenAgentInstalled(refreshed.data)) {
+      // Plugin wasn't registered by installer, add it manually
+      if (!refreshed.data.plugin) refreshed.data.plugin = [];
+      if (!refreshed.data.plugin.includes('oh-my-openagent@latest')) {
+        refreshed.data.plugin.push('oh-my-openagent@latest');
+        writeOpenCodeConfig(refreshed.path, refreshed.data);
+      }
+    }
+    log.success('oh-my-openagent is now installed and configured');
+    return true;
+  } catch (err) {
+    os.stop('oh-my-openagent install interrupted or failed');
+    log.warn('oh-my-openagent installer needs interactive input.');
+    log.info('Run it manually in a terminal:');
+    log.info(`  ${pc.cyan('bunx oh-my-openagent install')}`);
+    log.info('Follow the prompts to configure your provider and models.');
+    return false;
+  }
 }
 
 async function configureLearningDir() {
   const shouldConfigure = await confirm({
-    message: 'Create your learning directory now? You can also do this later with /omnilearn-init',
+    message:
+      'Create your learning directory now? You can also do this later with /omnilearn-init in OpenCode',
     initialValue: true,
   });
   if (isCancel(shouldConfigure)) {
@@ -236,7 +460,6 @@ async function configureLearningDir() {
   }
   if (!shouldConfigure) return null;
 
-  let learningDir;
   const defaultDir = path.join(
     process.env.HOME || process.env.USERPROFILE,
     'OmniLearn',
@@ -256,9 +479,8 @@ async function configureLearningDir() {
     process.exit(0);
   }
 
-  learningDir = dirInput.trim() || defaultDir;
+  const learningDir = dirInput.trim() || defaultDir;
 
-  // Create the config
   const config = {
     learningDirectory: learningDir,
     setupDate: new Date().toISOString().slice(0, 10),
@@ -270,7 +492,7 @@ async function configureLearningDir() {
   try {
     fs.mkdirSync(path.join(learningDir, '.omnilearn'), { recursive: true });
     fs.writeFileSync(OMNILEARN_CONFIG_PATH, JSON.stringify(config, null, 2));
-    s.stop(`Learning directory configured at ${learningDir}`);
+    s.stop(`Learning directory configured at ${pc.cyan(learningDir)}`);
     return learningDir;
   } catch (err) {
     s.stop('Failed to create learning directory');
@@ -285,64 +507,82 @@ async function configureLearningDir() {
 async function runHealthCheck() {
   intro(pc.inverse(' OmniLearn Health Check '));
 
+  const configInfo = readOpenCodeConfig();
   const checks = [];
 
-  // Check 1: OpenCode
+  // 1. OpenCode
   if (isOpenCodeInstalled()) {
-    checks.push(`${pc.green('✓')} OpenCode is installed`);
+    checks.push(`${pc.green('✓')} OpenCode installed`);
   } else {
-    checks.push(`${pc.red('✗')} OpenCode is not installed`);
-    checks.push(`  ${pc.dim('Install: curl -fsSL https://opencode.ai/install | bash')}`);
+    checks.push(`${pc.red('✗')} OpenCode not installed`);
+    checks.push(`  ${pc.dim('Run: npx omnilearn-workflow to install')}`);
   }
 
-  // Check 2: Command files
+  // 2. Command files
   let installedCount = 0;
+  const missing = [];
   for (const cmd of COMMANDS) {
     const dest = path.join(OPENCODE_COMMAND_DIR, cmd);
     if (fs.existsSync(dest)) {
       installedCount++;
+    } else {
+      missing.push(cmd);
     }
   }
   if (installedCount === COMMANDS.length) {
-    checks.push(`${pc.green('✓')} All ${COMMANDS.length} command files installed`);
+    checks.push(`${pc.green('✓')} All ${COMMANDS.length} command files installed at ${pc.cyan('~/.config/opencode/command/')}`);
   } else if (installedCount > 0) {
-    checks.push(
-      `${pc.yellow('⚠')} ${installedCount}/${COMMANDS.length} command files found (reinstall with npx omnilearn-workflow)`,
-    );
+    checks.push(`${pc.yellow('⚠')} ${installedCount}/${COMMANDS.length} command files found`);
+    checks.push(`  ${pc.dim('Missing: ' + missing.join(', '))}`);
+    checks.push(`  ${pc.dim('Reinstall: npx omnilearn-workflow --yes')}`);
   } else {
-    checks.push(
-      `${pc.red('✗')} No command files found (run: npx omnilearn-workflow)`,
-    );
+    checks.push(`${pc.red('✗')} No command files found`);
+    checks.push(`  ${pc.dim('Run: npx omnilearn-workflow')}`);
   }
 
-  // Check 3: OmniLearn config
+  // 3. Context7 MCP
+  if (configInfo.data && isContext7Configured(configInfo.data)) {
+    const ctxKey = Object.keys(configInfo.data.mcp).find(
+      (k) => k.toLowerCase().includes('context7') || k.toLowerCase().includes('ctx7'),
+    );
+    checks.push(`${pc.green('✓')} Context7 MCP configured (${pc.cyan(ctxKey)})`);
+  } else {
+    checks.push(`${pc.yellow('⚠')} Context7 MCP not configured`);
+    checks.push(`  ${pc.dim('Run: npx omnilearn-workflow to set it up')}`);
+  }
+
+  // 4. oh-my-openagent
+  if (configInfo.data && isOhMyOpenAgentInstalled(configInfo.data)) {
+    checks.push(`${pc.green('✓')} oh-my-openagent plugin registered`);
+  } else {
+    checks.push(`${pc.yellow('⚠')} oh-my-openagent not registered`);
+    checks.push(`  ${pc.dim('Run: bunx oh-my-openagent install')}`);
+  }
+
+  // 5. OmniLearn config
   if (isOmniLearnConfigured()) {
-    const config = readOmniLearnConfig();
-    const dir = config?.learningDirectory || 'unknown';
+    const cfg = readOmniLearnConfig();
+    const dir = cfg?.learningDirectory || 'unknown';
     const exists = dir !== 'unknown' && fs.existsSync(dir);
     if (exists) {
-      checks.push(`${pc.green('✓')} Learning directory configured: ${pc.cyan(dir)}`);
+      checks.push(`${pc.green('✓')} Learning directory: ${pc.cyan(dir)}`);
     } else {
-      checks.push(`${pc.yellow('⚠')} Learning directory configured but not found: ${pc.cyan(dir)}`);
-      checks.push(`  ${pc.dim('Create it or reconfigure with /omnilearn-init')}`);
+      checks.push(`${pc.yellow('⚠')} Learning directory configured but missing: ${pc.cyan(dir)}`);
+      checks.push(`  ${pc.dim('Create it or run /omnilearn-init to reconfigure')}`);
     }
   } else {
     checks.push(`${pc.yellow('⚠')} Learning directory not configured`);
-    checks.push(`  ${pc.dim('Run /omnilearn-init in OpenCode to set it up')}`);
+    checks.push(`  ${pc.dim('Run /omnilearn-init in OpenCode or re-run npx omnilearn-workflow')}`);
   }
 
-  // Check 4: Missing deps
-  const deps = await detectMissingDeps();
-  if (deps.length === 0) {
-    checks.push(`${pc.green('✓')} oh-my-openagent is installed`);
+  // 6. Bun (needed for oh-my-openagent)
+  if (isBunAvailable()) {
+    checks.push(`${pc.green('✓')} Bun available`);
   } else {
-    for (const dep of deps) {
-      checks.push(`${pc.yellow('⚠')} ${dep.name} not found — ${dep.desc}`);
-      checks.push(`  ${pc.dim('Install: ' + dep.installCmd)}`);
-    }
+    checks.push(`${pc.yellow('⚠')} Bun not installed (needed for oh-my-openagent install)`);
+    checks.push(`  ${pc.dim('Install: curl -fsSL https://bun.sh/install | bash')}`);
   }
 
-  // Print results
   const report = checks.join('\n');
   console.log(
     boxen(report, {
@@ -352,11 +592,24 @@ async function runHealthCheck() {
     }),
   );
 
-  const allGood = checks.every((c) => c.startsWith(pc.green('✓')));
-  if (allGood) {
-    outro(pc.green('Everything looks good! Open OpenCode and start learning.'));
+  const failCount = checks.filter((c) => c.startsWith(pc.red('✗'))).length;
+  if (failCount === 0) {
+    const warnCount = checks.filter((c) => c.startsWith(pc.yellow('⚠'))).length;
+    if (warnCount === 0) {
+      outro(pc.green('Everything looks good! Open OpenCode and start learning.'));
+    } else {
+      outro(
+        pc.yellow(
+          `${warnCount} warning(s) found — check suggestions above, or re-run npx omnilearn-workflow to fix.`,
+        ),
+      );
+    }
   } else {
-    outro(pc.yellow('Some issues found. Follow the suggestions above to resolve them.'));
+    outro(
+      pc.red(
+        `${failCount} issue(s) found. Run npx omnilearn-workflow to fix them automatically.`,
+      ),
+    );
   }
   process.exit(0);
 }
@@ -374,25 +627,27 @@ async function install(autoYes = false) {
     }),
   );
 
-  // Step 1: Check OpenCode
+  // ── Step 1: OpenCode ──
+  log.step('1/5  Checking OpenCode');
   const opencodeFound = isOpenCodeInstalled();
 
   if (!opencodeFound) {
     log.warn('OpenCode is not installed on this system.');
-    const shouldInstall = await confirm({
-      message: 'OpenCode is required. Install it now?',
-      initialValue: true,
-    });
-    if (isCancel(shouldInstall)) {
-      cancel('Installation cancelled');
-      process.exit(0);
-    }
-    if (!shouldInstall) {
-      log.error(
-        'OpenCode is required to use OmniLearn. Install it first:',
-      );
-      log.info('  curl -fsSL https://opencode.ai/install | bash');
-      process.exit(1);
+    if (!autoYes) {
+      const shouldInstall = await confirm({
+        message: 'OpenCode is required. Install it now?',
+        initialValue: true,
+      });
+      if (isCancel(shouldInstall)) {
+        cancel('Installation cancelled');
+        process.exit(0);
+      }
+      if (!shouldInstall) {
+        log.error('OpenCode is required to use OmniLearn.');
+        log.info('Install manually:');
+        log.info(`  ${pc.cyan('curl -fsSL https://opencode.ai/install | bash')}`);
+        process.exit(1);
+      }
     }
     const installed = await installOpenCode();
     if (!installed) process.exit(1);
@@ -400,58 +655,45 @@ async function install(autoYes = false) {
     log.success(`OpenCode found at ${pc.cyan(OPENCODE_CONFIG_DIR)}`);
   }
 
-  // Step 2: Detect missing optional deps
-  const missingDeps = await detectMissingDeps();
-  if (missingDeps.length > 0) {
-    for (const dep of missingDeps) {
-      log.warn(
-        `${dep.name} is not installed — ${dep.desc}`,
-      );
-      log.info(`  Install: ${pc.cyan(dep.installCmd)}`);
-    }
-  }
+  // ── Step 2: Context7 MCP ──
+  log.step('2/5  Configuring Context7 MCP (documentation lookups)');
+  const configInfo = readOpenCodeConfig();
+  await setupContext7MCP(configInfo);
 
-  // Step 3: Copy command files
-  const copied = await copyCommandFiles(autoYes);
+  // ── Step 3: oh-my-openagent ──
+  log.step('3/5  Checking oh-my-openagent (multi-agent orchestration)');
+  const refreshedConfig = readOpenCodeConfig();
+  await ensureOhMyOpenAgent(refreshedConfig);
 
-  if (copied === 0 && !autoYes) {
-    // If nothing was copied and not in auto mode, maybe nothing to do
-    const reinstall = await confirm({
-      message: 'Reinstall all command files?',
-      initialValue: false,
-    });
-    if (isCancel(reinstall)) {
-      cancel('Installation cancelled');
-      process.exit(0);
-    }
-    if (reinstall) {
-      // Force overwrite: remove existing first
-      for (const cmd of COMMANDS) {
-        const dest = path.join(OPENCODE_COMMAND_DIR, cmd);
-        try { fs.unlinkSync(dest); } catch {}
-      }
-      await copyCommandFiles(true);
-    }
-  }
+  // ── Step 4: Copy command files ──
+  log.step('4/5  Installing OmniLearn commands');
+  await copyCommandFiles(autoYes);
 
-  // Step 4: Check if learning dir is configured
+  // ── Step 5: Learning directory ──
+  log.step('5/5  Learning directory');
   const configured = isOmniLearnConfigured();
   if (!configured && !autoYes) {
     await configureLearningDir();
   } else if (configured) {
-    const config = readOmniLearnConfig();
+    const cfg = readOmniLearnConfig();
     log.success(
-      `Learning directory already configured: ${pc.cyan(config?.learningDirectory || 'unknown')}`,
+      `Learning directory already configured: ${pc.cyan(cfg?.learningDirectory || 'unknown')}`,
     );
   }
 
-  // ─── Outro ───
+  // ── Outro ──
   const summary = [
-    `${pc.green('✓')} OmniLearn commands installed`,
-    `${pc.cyan('/omnilearn-init')}        ${pc.dim('— Configure learning directory')}`,
+    `${pc.green('✓')} OmniLearn is ready to use!`,
+    '',
+    `${pc.bold('OpenCode commands installed:')}`,
+    `${pc.cyan('/omnilearn-init')}        ${pc.dim('— (Re)configure learning directory')}`,
     `${pc.cyan('/omnilearn-roadmap')}     ${pc.dim('— Create a learning roadmap')}`,
     `${pc.cyan('/omnilearn-start')}       ${pc.dim('— Start learning a topic')}`,
     `${pc.cyan('/omnilearn-refine')}      ${pc.dim('— Ask a deep question')}`,
+    '',
+    `${pc.bold('Quick start:')}`,
+    `  1. ${pc.cyan('opencode')}          ${pc.dim('— Open OpenCode in your terminal')}`,
+    `  2. ${pc.cyan('/omnilearn-roadmap')} ${pc.dim('— Create your first learning roadmap')}`,
   ].join('\n');
 
   outro(
@@ -460,7 +702,7 @@ async function install(autoYes = false) {
       margin: { top: 1, bottom: 0 },
       borderStyle: 'round',
       borderColor: 'green',
-      title: 'Ready to learn',
+      title: 'Ready',
       titleAlignment: 'center',
     }),
   );
@@ -479,14 +721,12 @@ if (args.includes('--help') || args.includes('-h')) {
 }
 
 if (args.includes('--check') || args.includes('-c')) {
-  // run health check
   runHealthCheck().catch((err) => {
     log.error(`Health check failed: ${err.message}`);
     process.exit(1);
   });
 } else {
   const autoYes = args.includes('--yes') || args.includes('-y');
-
   install(autoYes).catch((err) => {
     log.error(`Installation failed: ${err.message}`);
     process.exit(1);
