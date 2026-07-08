@@ -7,17 +7,24 @@
 ## Quick Start
 
 ```bash
-# Install the workflow commands
+# Run the installer — it will set up everything interactively
 npx omnilearn-workflow
 
-# Open OpenCode
+# The installer will:
+#   ✓ Check for OpenCode (and install it if missing)
+#   ✓ Install all /omnilearn-* commands
+#   ✓ Configure your learning directory
+#   ✓ Detect optional dependencies
+
+# Then open OpenCode and create your first roadmap:
 opencode
-
-# Set up your learning directory
-/omnilearn-init
-
-# Create your first roadmap
 /omnilearn-roadmap I want to learn Rust
+```
+
+## One-liner (auto-install with defaults)
+
+```bash
+npx omnilearn-workflow --yes
 ```
 
 ## Available Commands
@@ -59,7 +66,8 @@ OmniLearn uses **multi-agent orchestration** (Sisyphus → subagents) to:
 
 ## Requirements
 
-- [OpenCode](https://opencode.ai) with [Oh-My-OpenAgent](https://github.com/code-yeongyu/oh-my-openagent) installed
+- [OpenCode](https://opencode.ai) (installer can auto-install this for you)
+- [Oh-My-OpenAgent](https://github.com/code-yeongyu/oh-my-openagent) (recommended)
 - Node.js >= 18
 
 ## Configuration
@@ -74,7 +82,16 @@ OmniLearn stores its config at `~/.config/opencode/omnilearn.json`:
 }
 ```
 
-Run `/omnilearn-init` in OpenCode to configure.
+The installer can configure this for you during setup, or you can run `/omnilearn-init` in OpenCode.
+
+## CLI Flags
+
+| Flag | Description |
+|------|-------------|
+| `--yes`, `-y` | Auto-install with defaults (non-interactive) |
+| `--help`, `-h` | Show usage help |
+| `--version`, `-v` | Show package version |
+| `--check`, `-c` | Verify install health and detect issues |
 
 ## License
 

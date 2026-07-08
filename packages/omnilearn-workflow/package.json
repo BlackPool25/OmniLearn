@@ -1,6 +1,6 @@
 {
   "name": "omnilearn-workflow",
-  "version": "1.0.13",
+  "version": "1.0.14",
   "description": "OmniLearn — AI-powered adaptive learning workflow for OpenCode. Multi-agent orchestration that creates personalized roadmaps, hands-on assignments, and tracks progress across any skill.",
   "keywords": [
     "opencode",
@@ -14,7 +14,9 @@
   "homepage": "https://github.com/BlackPool25/OmniLearn",
   "license": "MIT",
   "author": "BlackPool25",
+  "type": "module",
   "bin": {
+    "omnilearn-workflow": "bin/install.js",
     "omnilearn-init": "bin/install.js"
   },
   "files": [
@@ -30,5 +32,10 @@
   },
   "engines": {
     "node": ">=18"
+  },
+  "dependencies": {
+    "@clack/prompts": "^1.7.0",
+    "picocolors": "^1.1.0",
+    "boxen": "^8.0.0"
   }
 }
