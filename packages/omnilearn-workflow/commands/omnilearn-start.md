@@ -166,7 +166,40 @@ fi
 Read these files to understand the current state:
 - `UserPreferences.md` (if exists) — learning style, experience level, goals
 - `SkillPreferences.md` — per-skill state, preferences
-- **`SkillConventions.md`** (if exists) — 🔑 **Setup conventions: package manager, project structure, deps, testing preferences. Read this BEFORE generating any scaffold or assignment — it ensures consistency.**
+- **`SkillConventions.md`** — 🔑 **Setup conventions: package manager, project structure, deps, testing preferences. Read this BEFORE generating any scaffold or assignment — it ensures consistency.**
+  
+  **AUTO-CREATION**: If `SkillConventions.md` does NOT exist when generating the first scaffold/assignment:
+  1. Read `SkillPreferences.md` to extract: package manager, test framework, linter, formatter, type checker
+  2. Create `SkillConventions.md` at `{SKILL_DIR}/SkillConventions.md` with concrete, actionable conventions
+  3. Include: project naming scheme, directory structure template, test command, lint command, type-check command
+  4. The subagents that generate scaffolds then use THIS file as their source of truth
+  5. Format: see existing `SkillConventions.md` in other skills if available; otherwise use the template below:
+  
+  ```markdown
+  # {Skill Name} — Conventions
+  
+  ## Package Manager
+  - [uv / npm / cargo / etc.]
+  
+  ## Project Structure
+  - [src/ layout or flat layout]
+  
+  ## Dependencies
+  - [pyproject.toml / package.json / Cargo.toml]
+  
+  ## Test Command
+  - [uv run pytest / npm test / cargo test]
+  
+  ## Lint Command
+  - [uv run ruff check / npx eslint / cargo clippy]
+  
+  ## Type Check Command
+  - [uv run basedpyright / npx tsc --noEmit]
+  
+  ## Naming Convention
+  - [kebab-case for project name, underscores for import package]
+  ```
+  
 - `progress-index.md` — overview of topic statuses
 
 **For any topics marked 🔵 In Progress**, read their `topic-progress.md` files to get the detailed state:
@@ -396,29 +429,101 @@ task(category="deep", run_in_background=false, timeout=600000, prompt="
      - Must be runnable without modification (include any needed imports)
      - Use the simplest possible test setup
    
-   c) scaffold/ directory with starter files:
-   
-      GOLDEN RULE: The user must be able to go from `cd scaffold/` to `running the test` in ONE command.
-      If the assignment isn't testing setup/environment skills, automate ALL of that.
-   
-      - Include a setup script (`setup.sh` for Unix, `setup.ps1` for Windows) that:
-        * Creates virtual environment (Python: `python -m venv .venv`), or installs deps (Node: `npm install`)
-        * Installs required packages
-        * Prints "Environment ready! Run this command to start: ..."
-      - OR include a one-liner in the scaffold README: `python -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt`
-      - Include `requirements.txt` / `package.json` with ALL needed deps pre-listed
-      - Minimal code structure — only the files the user needs to touch
-      - Comments marking where to write code // TODO: or # TODO:
-      - Import/require statements already in place
-      - Cross-skill integration: if the user knows {related_skill}, structure the scaffold to use familiar patterns from it
-      - If the topic is NOT a programming topic (e.g., system design), provide templates or worksheets instead
-   
-      ANNOYING THINGS TO NEVER DO:
-      - Do NOT make the user manually create a venv or install packages unless the assignment is specifically about that
-      - Do NOT leave unlisted imports — if a package is needed, it must be in requirements.txt / package.json
-      - Do NOT require the user to set up databases, API keys, or external services without providing clear instructions or a docker-compose.yml
-      - Do NOT leave configuration files empty or incomplete — provide working defaults
-      - Do NOT make the user hunt for the right Python/Node version — specify it in the scaffold or use `.nvmrc`/`.python-version`
+    c) scaffold/ directory with starter files:
+    
+       GOLDEN RULE: The user must be able to go from `cd scaffold/` to `running the test` in ONE command.
+       If the assignment isn't testing setup/environment skills, automate ALL of that.
+    
+       The scaffold MUST follow the conventions from SkillConventions.md. If that file doesn't exist,
+       read SkillPreferences.md to determine: package manager, test framework, linter, formatter,
+       project structure preferences.
+    
+       ----------------------------------------------------------------
+       PYTHON UV PROJECTS (most common case in 2026):
+       ----------------------------------------------------------------
+       Use THIS structure for ANY Python project that uses `uv`:
+    
+       ```
+       scaffold/
+       ├── pyproject.toml          # name = derived from skill (see naming rules below)
+       ├── uv.lock                 # auto-generated by uv sync
+       ├── .python-version         # pinned Python version
+       ├── .gitignore              # .venv, __pycache__, .env, *.pyc
+       ├── README.md
+       ├── setup.sh                # just runs: uv sync && echo "Ready!"
+       ├── src/
+       │   └── <package_name>/     # importable package (see naming rules)
+       │       ├── __init__.py
+       │       └── main.py         # user-editable file with # TODO markers
+       └── tests/
+           ├── __init__.py
+           └── test_main.py
+       ```
+    
+       SETUP (automate everything):
+       - setup.sh does ONE thing: `uv sync` (auto-creates .venv, installs all deps)
+       - NO `python -m venv`, NO `pip install`, NO `requirements.txt`
+       - Include `pyproject.toml` with ALL deps pre-listed in `[project] dependencies`
+       - Dev deps go in `[dependency-groups] dev` (uv-native pattern)
+       - Include `uv.lock` so installs are reproducible
+       - Include `.python-version` to pin the Python version
+       - Test script lives INSIDE scaffold/ so `uv run` finds pyproject.toml directly
+       - OR: setup.sh + README.md with `uv sync && uv run pytest`
+    
+       ----------------------------------------------------------------
+       JAVASCRIPT / TYPESCRIPT PROJECTS:
+       ----------------------------------------------------------------
+       - Use `package.json` with `npm install` or the user's preferred package manager
+       - Include minimal config files (tsconfig.json, .eslintrc, etc.)
+       - test script: `npm test`
+    
+       ----------------------------------------------------------------
+       GENERIC (all projects):
+       ----------------------------------------------------------------
+       - Minimal code structure — only the files the user needs to touch
+       - Comments marking where to write code // TODO: or # TODO:
+       - Import/require statements already in place
+       - Cross-skill integration: if the user knows {related_skill}, structure the scaffold to use familiar patterns from it
+       - If the topic is NOT a programming topic (e.g., system design), provide templates or worksheets instead
+    
+       ----------------------------------------------------------------
+       PROJECT NAMING RULES (MANDATORY — Python/Node/any):
+       ----------------------------------------------------------------
+       The project name in pyproject.toml / package.json MUST follow these rules:
+    
+       1. **Be descriptive & unique** — NEVER use generic names:
+          ❌ BAD: "app", "myapp", "project", "api", "backend", "core", "server"
+          ✅ GOOD: skill-derived kebab-case like "python-backend-fastapi-learning"
+    
+       2. **No PyPI conflicts** — The name must NOT match any dependency's PyPI name.
+          Search PyPI to verify. If it matches, rename. Common conflicts: "app", "api",
+          "fastapi" (if adding fastapi as dep), "uvicorn", "pydantic".
+    
+       3. **Rule for Python projects**:
+          - `pyproject.toml` name (distribution name): kebab-case with hyphens
+          - Import package name (directory): same name with hyphens → underscores
+          - Example:
+            | Skill | "Python-Backend-FastAPI" |
+            | Project name | `python-backend-fastapi-learning` |
+            | Package dir | `src/python_backend_fastapi_learning/` |
+          - Derive from skill name: lowercase the skill, replace spaces/slashes with hyphens, append "-learning"
+    
+       4. **Rule for Node projects**:
+          - `package.json` name: @scope/kebab-case (e.g., `@omnilearn/react-learning`)
+          - Main entry: `src/index.js` or `src/index.ts`
+    
+       ----------------------------------------------------------------
+       ANNOYING THINGS TO NEVER DO:
+       ----------------------------------------------------------------
+       - Do NOT make the user manually create a venv or install packages unless the assignment is specifically about that
+       - Do NOT leave unlisted imports — if a package is needed, it must be in pyproject.toml / package.json as a dependency
+       - Do NOT create requirements.txt — use pyproject.toml exclusively for Python uv projects
+       - Do NOT run `uv` commands from a directory without a pyproject.toml (unless using `--no-project`)
+       - Do NOT place test.sh outside the scaffold directory — it causes uv project discovery failures
+       - Do NOT require the user to set up databases, API keys, or external services without providing clear instructions or a docker-compose.yml
+       - Do NOT leave configuration files empty or incomplete — provide working defaults
+       - Do NOT make the user hunt for the right Python/Node version — specify it in the scaffold or use `.nvmrc`/`.python-version`
+       - Do NOT use project name "app" — it conflicts with the PyPI "app" package and breaks uv
    
    d) solution-guide.md — CRITICAL: Must be researched, accurate, and complete.
    
@@ -498,14 +603,17 @@ STEP 5 — Create topic-progress.md at:
    - Do NOT leave TODOs in scaffold that require making unrelated architectural decisions
    - **Do NOT write solutions without researching first** — use google_search or context7 to verify API syntax, library behavior, and best practices before writing solution-guide.md
    - **Do NOT guess** — if you're unsure how a library function works, look it up via context7. Guesses lead to inaccurate solutions.
+   - **Do NOT use `pip install`, `python -m venv`, or `requirements.txt` in Python scaffolds** — use `uv sync` and `pyproject.toml`
+   - **Do NOT name the project "app" or any generic name** — use the skill-derived naming rules (see STEP 4)
+   - **Do NOT generate scaffolds with flat layout (`app/` at root)** — use `src/` layout for production-quality structure
 
 6. CONTEXT:
-   - Skill: {skill}
+   - Skill: {skill} — DERIVE THE PROJECT NAME FROM THIS using naming rules in STEP 4
    - Topic: {topic}
    - Topics directory: {TOPICS_DIR}/{topic}/
    - User experience level: {from preferences}
    - User learning style: {from preferences}
-   - Skill conventions (package manager, project structure, deps, testing setup): {from SkillConventions.md — read before generating scaffold}
+   - Skill conventions (package manager, project structure, deps, testing setup): {from SkillConventions.md — read before generating scaffold. If SkillConventions.md doesn't exist, read SkillPreferences.md}
    - Cross-skill context (other skills user knows, so scaffold can use familiar patterns): {from cross-skill inventory}
 ")
 ```
@@ -785,19 +893,66 @@ task(category="unspecified-high", run_in_background=false, timeout=300000, promp
      - Clear failure messages
      - Self-contained and runnable
    
-   c) scaffold/ — Starter code:
-   
-      GOLDEN RULE: The user must go from `cd scaffold/` to running tests in ONE command.
-      
-      - Include setup script (`setup.sh` + `setup.ps1`) that auto-creates env + installs deps
-      - OR one-liner setup instructions in a README
-      - `requirements.txt` / `package.json` with ALL deps pre-listed
-      - Minimal boilerplate — only what the user needs to touch
-      - TODO markers for user implementation
-      - All necessary imports/includes set up
-      - If the user knows {related_skill} from SkillConventions.md, use familiar patterns
-      - Auto-setup: `python -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt`
-      - NEVER make the user manually install packages (unless assignment tests that skill)
+    c) scaffold/ — Starter code:
+    
+       GOLDEN RULE: The user must go from `cd scaffold/` to running tests in ONE command.
+    
+       The scaffold MUST follow SkillConventions.md (or SkillPreferences.md if conventions file doesn't exist).
+    
+       ----------------------------------------------------------------
+       PYTHON UV PROJECTS (most common case in 2026):
+       ----------------------------------------------------------------
+       Use THIS structure:
+    
+       ```
+       scaffold/
+       ├── pyproject.toml          # name = skill-derived (see naming rules below)
+       ├── uv.lock                 # auto-generated by uv sync
+       ├── .python-version         # pinned Python version
+       ├── .gitignore              # .venv, __pycache__, .env, *.pyc
+       ├── README.md
+       ├── setup.sh                # just runs: uv sync
+       ├── src/
+       │   └── <package_name>/     # importable package (skill-derived)
+       │       ├── __init__.py
+       │       └── main.py
+       └── tests/
+           ├── __init__.py
+           └── test_main.py
+       ```
+    
+       SETUP RULES:
+       - setup.sh: `uv sync` only (auto-creates .venv, installs all deps)
+       - NO `python -m venv`, NO `pip install`, NO `requirements.txt`
+       - pyproject.toml with ALL deps pre-listed, dev deps in `[dependency-groups] dev`
+       - Test file lives INSIDE scaffold/ so `uv run` finds pyproject.toml
+        
+       ----------------------------------------------------------------
+       JAVASCRIPT / TYPESCRIPT / OTHER:
+       ----------------------------------------------------------------
+       - Node: package.json with npm install or user's preferred package manager
+       - Rust: Cargo.toml with cargo build
+       - Follow SkillConventions.md for the exact structure
+    
+       ----------------------------------------------------------------
+       PROJECT NAMING RULES (MANDATORY — same as Phase 1.4):
+       ----------------------------------------------------------------
+       - NEVER use generic names: "app", "myapp", "project", "api", "backend", "core", "server"
+       - USE: skill-derived kebab-case, e.g., "python-backend-fastapi-learning"
+       - The project name must NOT match any dependency's PyPI name (check before choosing)
+       - Python: project name = kebab-case, package dir = same with underscores
+         Example: name="python-backend-fastapi-learning", src/python_backend_fastapi_learning/
+       - Derive from skill name: lowercase skill, replace special chars with hyphens, append "-learning"
+    
+       ----------------------------------------------------------------
+       ANNOYING THINGS TO NEVER DO:
+       ----------------------------------------------------------------
+       - Do NOT make the user manually create a venv or install packages unless the assignment specifically tests that skill
+       - Do NOT create requirements.txt — use pyproject.toml exclusively for Python uv projects
+       - Do NOT run `uv` commands from a directory without pyproject.toml (unless using `--no-project`)
+       - Do NOT place test.sh outside scaffold/ — it breaks uv project discovery
+       - Do NOT use project name "app" — conflicts with PyPI "app" package and breaks uv
+       - Do NOT leave unlisted imports — every dep must be in pyproject.toml / package.json
    
    d) solution-guide.md — CRITICAL: Must be researched and accurate.
    
@@ -843,15 +998,18 @@ task(category="unspecified-high", run_in_background=false, timeout=300000, promp
    - Do NOT write solutions without researching first
    - Do NOT use external non-standard dependencies without noting it in scaffold setup
    - Do NOT guess API signatures — use context7 to verify
+   - **Do NOT use `pip install`, `python -m venv`, or `requirements.txt` in Python scaffolds** — use `uv sync` and `pyproject.toml`
+   - **Do NOT name the project "app" or any generic name** — use skill-derived naming rules
+   - **Do NOT generate scaffolds with flat layout** — use `src/` layout for production-quality structure
 
-6. CONTEXT:
-   - Skill: {skill}
+7. CONTEXT:
+   - Skill: {skill} — DERIVE THE PROJECT NAME FROM THIS using naming rules
    - Topic: {topic}
    - Assignment number: {n}
    - Difficulty: {current difficulty level}
    - Previous assignment concepts: {summary}
    - User performance on previous assignment: {observations}
-   - Skill conventions (package manager, project structure, deps, testing setup): {from SkillConventions.md — MUST follow these when generating scaffold}
+   - Skill conventions (package manager, project structure, deps, testing setup): {from SkillConventions.md — MUST follow these when generating scaffold. If SkillConventions.md doesn't exist, read SkillPreferences.md}
    - Cross-skill context (other skills the user knows): {from cross-skill inventory — integrate these patterns into the scaffold if relevant}
 ")
 ```

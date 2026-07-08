@@ -1,6 +1,6 @@
 {
   "name": "omnilearn-workflow",
-  "version": "1.0.12",
+  "version": "1.0.13",
   "description": "OmniLearn — AI-powered adaptive learning workflow for OpenCode. Multi-agent orchestration that creates personalized roadmaps, hands-on assignments, and tracks progress across any skill.",
   "keywords": [
     "opencode",
