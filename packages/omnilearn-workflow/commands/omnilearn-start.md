@@ -30,11 +30,14 @@ description: Start an interactive learning session. Generates hands-on assignmen
 
 ### What Every Topic Produces
 
-1. **`topic-explanation.md`** — Expert-grade theory explainer: context hook → progressive layers (simple→complex) → annotated examples → misconceptions → checkpoints. Each layer is self-contained and correct; they build up WITHOUT assuming prior technical depth.
-2. **Hands-on assignments** — calibrated difficulty: baseline → adjusted based on performance. NOT a fixed ladder.
-3. **Test scripts** — immediate feedback so the user knows if they're on track.
-4. **Scaffold code** — starter files so they jump straight into coding, not boilerplate.
-5. **Solution guides** — reference implementations with explanation.
+1. **`topic-overview.md`** — Big picture orientation: why this topic matters, subtopic dependency map, prerequisites. 5-minute read that gives the lay of the land before diving deep.
+2. **`topic-roadmap.md`** — Index of subtopics with dependency ordering, estimated effort, and links to each subtopic's explanation and assignments.
+3. **Per-subtopic `subtopic-explanation.md`** — Expert-grade theory explainer for ONE concept. Uses progressive layers (simple→complex→production) with annotated examples, misconceptions, and checkpoints. Each subtopic is self-contained — no cramming multiple concepts together.
+4. **Per-subtopic hands-on assignments** — calibrated difficulty: baseline → adjusted based on performance. Each subtopic gets its own assignments so the user demonstrates mastery of ONE concept before moving on.
+5. **Cross-subtopic integration assignments** — optional final assignments that combine multiple subtopics into real-world scenarios.
+6. **Test scripts** — immediate feedback so the user knows if they're on track.
+7. **Scaffold code** — starter files so they jump straight into coding, not boilerplate.
+8. **Solution guides** — reference implementations with explanation.
 
 The goal metric: **Can the user apply what they learned to real-world problems they haven't seen before?**
 
@@ -57,23 +60,33 @@ The goal metric: **Can the user apply what they learned to real-world problems t
 │       └── ...
 └── topics/
     └── <topic-name>/                       ← e.g., "error-handling", "neural-networks"
-        ├── topic-roadmap.md                ← Detailed subtopic roadmap (created on-demand)
-        ├── **topic-explanation.md**        ← ← 🔑 THEORY: Expert-grade explanation (context hook → progressive layers 1→2→3 → annotated examples → misconceptions → checkpoints → bridge to assignments)
-        ├── topic-progress.md               ← 🔑 PROGRESS LIVES HERE: assignment status, sessions, skills demonstrated
-        ├── assignments/
-        │   ├── 01-<concept-basics>/
-        │   │   ├── question.md             ← Real-world scenario assignment brief
-        │   │   ├── test.<ext>              ← Automated test script
-        │   │   ├── scaffold/               ← Starter code (user writes solution here)
-        │   │   └── solution-guide.md       ← Reference solution + explanation
-        │   ├── 02-<concept-intermediate>/
-        │   │   └── ...
-        │   └── 03-<concept-real-world>/
-        │       └── ...
-        └── runs/                           ← Per-topic action logs (NOT progress state)
-            └── YYYY-MM-DD-HHMMSS-<activity>/
-                ├── agent-log.md            ← Actions during this run
-                └── ...
+        ├── topic-overview.md               ← ← 🔑 BIG PICTURE: why this topic matters, subtopic dependency map, prerequisites (5 min read)
+        ├── topic-roadmap.md                ← INDEX linking to each subtopic with dependency order
+        ├── topic-progress.md               ← 🔑 PROGRESS: per-subtopic status (overall + subtopic-level)
+        │
+        ├── subtopics/                      ← NEW: each subtopic is a focused, self-contained unit
+        │   ├── 01-<subtopic-name>/          ← e.g., "01-python-version-management"
+        │   │   ├── subtopic-explanation.md ← ← 🔑 DEEP explanation for ONE subtopic (all 3 layers, no cramming)
+        │   │   ├── subtopic-progress.md    ← Progress for this single subtopic
+        │   │   ├── assignments/
+        │   │   │   ├── 01-<concept>/
+        │   │   │   │   ├── question.md     ← Real-world scenario assignment brief
+        │   │   │   │   ├── test.<ext>      ← Automated test script
+        │   │   │   │   ├── scaffold/       ← Starter code
+        │   │   │   │   └── solution-guide.md
+        │   │   │   └── 02-...              ← More assignments for this subtopic (if needed)
+        │   │   └── runs/                   ← Per-subtopic action logs
+        │   │       └── YYYY-MM-DD-HHMMSS-<activity>/
+        │   │           └── agent-log.md
+        │   ├── 02-<subtopic-name>/
+        │   └── ...
+        │
+        └── assignments/                    ← Cross-subtopic integration assignments
+            └── 01-<integration-name>/
+                ├── question.md
+                ├── test.<ext>
+                ├── scaffold/
+                └── solution-guide.md
 ```
 
 ## Current Date Context (CRITICAL — Must Pass to ALL Subagents)
@@ -260,28 +273,43 @@ If the chosen topic doesn't have a `topic-roadmap.md`, spawn a DEEP autonomous s
 
 ```typescript
 task(category="deep", run_in_background=false, timeout=600000, prompt="
-1. TASK: Create a comprehensive subtopic roadmap and initial learning materials for the topic '{topic}' within the skill '{skill}'.
-2. EXPECTED OUTCOME: A detailed topic-roadmap.md with structured learning path, AND the first assignment with question, test script, scaffold, and solution guide.
+1. TASK: Create a nested subtopic learning architecture for '{topic}' within the skill '{skill}'.
+2. EXPECTED OUTCOME:
+   - topic-overview.md — Big picture orientation (5 min read)
+   - topic-roadmap.md — Index linking to each subtopic
+   - For the FIRST subtopic (rest on-demand):
+     * subtopic-explanation.md — Deep, focused explanation of ONE concept
+     * First assignment with question, test, scaffold, solution guide
+   - topic-progress.md with per-subtopic tracking
 
 3. REQUIRED TOOLS: google_search, websearch_web_search_exa, context7_resolve-library-id, context7_query-docs, read, write, bash, grep
 
 4. MUST DO — Step-by-Step:
    - **CURRENT DATE: {CURRENT_DATE}** — ONLY research current information. Prioritize resources from the last 1-2 years. Check for deprecation warnings. Prefer latest stable versions of any library/framework/tool. If older resources reference superseded tools (e.g. CRA → Vite, pip → uv), flag and use the current standard.
 
-   STEP 1 — Research:
+   STEP 1 — EXHAUSTIVE Research for Real-World Proficiency:
    - Read the main roadmap to understand how this topic fits: {ROADMAP}
    - Read user preferences: {GLOBAL_PREFS} (if exists), {SKILL_PREFS} (if exists)
-   - Use google_search / websearch extensively to research:
-     * What EXACTLY needs to be learned for this topic for real-world proficiency
-     * Common learning resources, tutorials, documentation
-     * Best practices and common pitfalls
-     * Prerequisites and related concepts
+   - Use google_search / websearch EXTENSIVELY (5-15 queries minimum) to research:
+     * What EXACTLY does a professional need to know about this topic to build production software?
+     * What are the MUST-KNOW concepts vs nice-to-have?
+     * What are the most common mistakes beginners make?
+     * What industry-standard tools and practices exist in 2026?
+     * What are the prerequisites — what must be understood first before this makes sense?
+     * Search for actual job requirements, real-world projects, and production codebases that use this topic
+   - Research each potential subtopic individually:
+     * What specific sub-skills does it contain?
+     * What are the failure modes and edge cases?
+     * What is the minimum viable understanding to be productive?
+     * What are the deeper patterns that separate beginners from professionals?
    - If it's a tech topic, use context7 for official documentation
-   
+   - DOCUMENT your research — capture URLs, key findings, and decisions. Research quality directly determines roadmap quality.
+
    STEP 2 — Create topic-roadmap.md at:
      {TOPICS_DIR}/{topic}/topic-roadmap.md
    
-   Structure:
+   This is an INDEX, NOT a detailed document. Structure:
+   
    # {topic} — Learning Path
    
    ## Prerequisites
@@ -290,401 +318,317 @@ task(category="deep", run_in_background=false, timeout=600000, prompt="
    ## Learning Objectives
    - By the end, what the user will be able to do
    
-   ## Subtopic Breakdown (ordered)
+   ## Subtopic Dependency Map
+   - Show how subtopics connect: which must come first, which can be parallel
+   - Use a simple arrow notation: 01 → 02 → 03, or 01 → 02, 01 → 03 (parallel)
+   
+   ## Subtopics (ordered by dependency)
    ### 1. {subtopic name}
-   - Core concepts
-   - Why it matters in real-world
-   - Practical skills gained
+   - What this subtopic covers (1 sentence)
+   - Why it matters in real-world (1 sentence)
+   - Estimated time: {X} min
+   - Link to subtopic: subtopics/01-{name}/subtopic-explanation.md
    
    ### 2. ...
    
-   ## Assignment Structure (Adaptive — Determined During Learning)
-   - **Assignments are NOT pre-defined.** They are generated on-demand based on the user's performance, ZPD, and pace.
-   - The general trajectory is: Baseline → Stretch → Real-World, but the number of assignments and their specific difficulty is determined adaptively.
-   - If the user breezes through, they get fewer, harder assignments. If they struggle, they get more scaffolding and intermediate bridging exercises.
-   - The final assignment will be a real-world scenario that integrates this topic with other skills the user knows.
+   ## Cross-Subtopic Integration
+   - How subtopics combine into real-world scenarios
+   - Optional integration assignments listed here
+
+   STEP 3 — Create topic-overview.md at:
+     {TOPICS_DIR}/{topic}/topic-overview.md
    
-   STEP 3 — Create topic-explanation.md at:
-     {TOPICS_DIR}/{topic}/topic-explanation.md
+   This is the BIG PICTURE — what the user reads FIRST to orient themselves.
+   It is NOT the deep dive (each subtopic gets its own deep dive).
+   Keep it to 5 minutes of reading. Structure:
    
-   This is the THEORETICAL FOUNDATION the user reads BEFORE attempting assignments.
+   # {topic}
+   
+   ⏱️ Estimated reading time: 5 minutes
+   
+   ## Why This Topic Matters
+   Start with a problem the reader has felt. A concrete situation that hooks them.
+   Keep it to 2-3 paragraphs — this is the MOTIVATION, not the lesson.
+   
+   ## What You'll Learn
+   - Bullet list of the subtopics (brief, 1 line each)
+   - What you'll be able to do after each subtopic
+   
+   ## How These Subtopics Fit Together
+   Dependency diagram in text form:
+   ```
+   01. Python Version Management ──┐
+                                   ├── 04. Git Basics ──┐
+   02. Package Management ─────────┘                    │
+                                   ├── 05. Docker ──────┤── 06. Full Setup
+   03. VS Code Tooling ────────────┘                    │
+                                   └── Integration
+   ```
+   Or a simple ordered list with dependency notes.
+   
+   ## Prerequisites
+   Brief checklist (should be concise — details live in each subtopic)
+
+   STEP 4 — Create the FIRST SUBTOPIC at:
+     {TOPICS_DIR}/{topic}/subtopics/01-{subtopic-name}/
+   
+   Create ONLY the first subtopic now. Rest are generated on-demand as user progresses.
+   
+   4a) Create subtopic-explanation.md at:
+     {TOPICS_DIR}/{topic}/subtopics/01-{subtopic-name}/subtopic-explanation.md
+   
+   This is the THEORETICAL FOUNDATION for ONE specific subtopic.
+   ONLY the first subtopic gets created now.
    
    **CRITICAL PEDAGOGY RULES** (based on cognitive load theory + expert teaching research):
+   - **ONE concept per document**. This file MUST cover exactly ONE subtopic. If you find yourself explaining multiple distinct concepts, you need to split them into separate subtopics.
    - **One-Level-Down Rule**: Start one level simpler than you think the user needs. You can always go deeper; you cannot undo confusion once it sets in. Each layer must be a correct (if simplified) mental model.
    - **Unpack → Complexity → Repack**: Deconstruct the concept to its essence, progressively add real-world constraints, then reconstruct into a coherent mental model the user can carry forward.
-   - **Assume Nothing**: Make ALL prerequisites explicit. The user is here to LEARN. Do not assume they know the surrounding jargon unless you stated it as a prerequisite.
+   - **Assume Nothing**: Make ALL prerequisites explicit.
    - **One New Idea at a Time**: Working memory holds ~4 chunks. Never introduce multiple new concepts in the same paragraph.
-   - **Concrete Before Abstract**: Show the full working example FIRST, then explain why it works. Humans learn patterns, then rules.
+   - **Concrete Before Abstract**: Show the full working example FIRST, then explain why it works.
    - **Address Misconceptions Proactively**: For every concept, anticipate the 2-3 most common confusions and address them BEFORE the user gets confused.
-   - **Active > Passive**: Embed quick checkpoints. The user should pause, think, or answer before moving on.
-   - **The Completeness Test**: Each layer must give a correct mental model IN ISOLATION. Layer 1 must not contradict Layer 3 — it's a simplified version of the same truth.
+   - **Active > Passive**: Embed quick checkpoints.
+   - **The Completeness Test**: Each layer must give a correct mental model IN ISOLATION.
+   - **Depth over breadth**: 200-400 lines per subtopic-explanation.md. If shorter, you're skipping depth. If longer, you're cramming multiple subtopics.
    
    Use this format:
    
-   # {topic}
-
-   ⏱️ Estimated reading time: {X}-{Y} minutes (varies by your depth preference — Layer 1 alone is ~3 min)
+   # {subtopic name}
+   
+   ⏱️ Estimated reading time: {X}-{Y} minutes
    
    ## Why This Matters
-   Start with a problem the reader has felt. A concrete situation: "You're building X and you notice Y behavior. You try Z but it doesn't work. That's because..." 
-   
-   **Hook them with the pain this concept solves.** Do NOT start with a definition. Start with the human situation.
-   
-   > Example: Instead of "FastAPI is a modern web framework for Python", say: "You've built a Python script that processes data. Now you need to expose it as an API so others can call it. You could use Flask, but you notice it doesn't validate request data, your docs are hand-written, and async endpoints need boilerplate. FastAPI solves these three problems in one go."
+   Same hook pattern, but scoped to THIS subtopic only. The user just read the topic overview — now they're diving deeper into ONE piece.
    
    ## Prerequisites
-   Explicit checklist of what the user should already know. Numbered. No surprises.
-   ```
-   Before reading this, you should be comfortable with:
-   1. {concept A} — we'll use it to build {new concept}
-   2. {concept B} — understanding this makes {topic} click faster
-   3. {tool/library C} — basic usage required
-   
-   Not there yet? Review: {link to prerequisite topic or resource}
-   ```
-   **Be honest here.** If you list something as a prerequisite and it actually isn't needed, you'll scare the user off. If you skip listing something that IS needed, the user will get confused.
+   Only what's needed for THIS subtopic. If it needs another subtopic first, link to it.
    
    ## Layer 1: The Core Idea (One Level Down)
-   
-   The simplest correct explanation. If you were explaining this to someone who knows the prerequisites but nothing more about this topic.
-   
-   Describe the concept using:
-   - An analogy to something familiar (if one exists and is correct)
-   - The minimal working example — no edge cases, no error handling
-   - The ONE thing that makes this concept different from what the user already knows
-   
-   Use **bold** for new terminology. Define each term inline immediately.
-   
-   > **Keep it to 1-2 paragraphs max.** If you need more, you're not one level down enough.
+   The simplest correct explanation for THIS ONE concept. 1-2 paragraphs max.
    
    ## Layer 2: How It Actually Works
-   
-   Now add real-world constraints. Pick up from Layer 1 and show the same concept with:
-   - The actual mechanics (code, system interaction, protocol details)
-   - Concrete syntax / implementation patterns
-   - How the pieces connect (architecture flow, data flow, call sequence)
-   - **Why** each piece exists (not just what it does)
-   
-   For technical topics: include annotated code blocks where every line/block is explained with a comment on WHY it's there.
-   
-   ```{language}
-   # Line 1: We do X because... (REASON, not description)
-   # Line 2: This handles Y edge case because...
-   # Line 3: Without this, Z would break because...
-   ```
-   
-   > **If the topic isn't code** (e.g., system design, ML theory): use concrete diagrams described in text. "The flow goes: Client → Load Balancer → Service A. The load balancer exists because..." Show the sequence explicitly.
+   Commands, examples, code, real interactions. Researched against current (2026) docs.
+   Include annotated code blocks with WHY comments.
+   100-250 lines of focused, practical content. No tangents into other topics.
    
    ## Layer 3: Real-World Production Context
-   
-   Now go deeper. What changes when this runs at scale, in production, with real traffic?
-   
-   - **Common Misconceptions** (2-3, proactively addressed):
-     | What People Think | What Actually Happens | Why The Confusion |
-     |------------------|----------------------|-------------------|
-     | "X does Y" | Actually X does Z because..." | "This confusion comes from..." |
-   
-   - **Edge Cases & Failure Modes**: What breaks and why. How to handle it.
-   - **Trade-offs**: What you gain vs what you sacrifice by using this approach.
-   - **Performance & Security**: How this behaves under load. Security considerations.
-   - **Production Patterns**: How experienced practitioners actually use this (tools, configs, monitoring).
-   
-   > **Don't scare the user.** Frame these as: "Now that you understand the basics, here's how experienced engineers think about this. You don't need to master all of this today, but knowing these patterns will save you hours of debugging."
+   - **Common Misconceptions** (2-3, specific to THIS concept)
+   - **Edge Cases & Failure Modes** specific to THIS subtopic
+   - **Trade-offs** relevant to THIS decision
+   - **Production Patterns** for THIS specific skill
    
    ## Learning Checkpoints
-   
-   Quick verification questions. The user should be able to answer these after reading. They are NOT graded — they're self-checks.
-   
-   ```
-   1. {Concept name}: In your own words, explain what this does and why it exists.
-   2. {Scenario question}: If {situation X} happens, what would {concept} do?
-   3. {Compare/contrast}: How is {this concept} different from {similar concept the user might confuse it with}?
-   
-   If you can't answer these, re-read Layer 1 and Layer 2 above. If you're still unsure, ask me to clarify before starting the assignment.
-   ```
+   3-5 questions testing ONLY this subtopic's concepts.
    
    ## Ready to Practice?
-   Brief bridge sentence connecting theory to the first assignment. Reference specific concepts from the explanation:
+   → Assignment: {TOPICS_DIR}/{topic}/subtopics/01-{name}/assignments/01-{concept}/
    
-    "Now that you understand {concept from Layer 1} and {pattern from Layer 2}, open assignment 01-{name} to apply it. Pay special attention to {specific gotcha from Layer 3}."
-    
-    STEP 4 — Create Assignment 1 (the first one) at:
-     {TOPICS_DIR}/{topic}/assignments/01-{concept}/
+   4b) Create Assignment 1 for this subtopic at:
+     {TOPICS_DIR}/{topic}/subtopics/01-{subtopic-name}/assignments/01-{concept}/
    
    Create these files:
    
-   a) question.md — The assignment brief:
-     - Clear learning objective
-     - Problem description (real-world scenario)
-     - Requirements/Specifications (numbered list)
-     - Hints section (hidden behind spoiler or at bottom)
-     - Expected output/behavior description
-     - References to docs/resources if helpful
+   a) question.md — Assignment brief specific to THIS subtopic
+      - Clear learning objective matching THIS subtopic's concepts
+      - Problem description (real-world scenario)
+      - Requirements/Specifications (numbered list)
+      - Hints section (hidden behind spoiler or at bottom)
+      - Expected output/behavior description
+      - References to subtopic-explanation.md sections
    
-   b) test.{ext} — Automated test script:
-     - Language-appropriate test framework (pytest for Python, jest for JS/TS, etc.)
-     - Tests that validate the solution works correctly
-     - Edge case tests
-     - Clear error messages on failure
-     - Must be runnable without modification (include any needed imports)
-     - Use the simplest possible test setup
+   b) test.{ext} — Automated test script for THIS subtopic
+      - Tests that validate ONLY this subtopic's learning objectives
+      - Edge case tests
+      - Clear error messages on failure
+      - Must be runnable without modification
    
-    c) scaffold/ directory with starter files:
-    
-       GOLDEN RULE: The user must be able to go from `cd scaffold/` to `running the test` in ONE command.
-       If the assignment isn't testing setup/environment skills, automate ALL of that.
-    
-       The scaffold MUST follow the conventions from SkillConventions.md. If that file doesn't exist,
-       read SkillPreferences.md to determine: package manager, test framework, linter, formatter,
-       project structure preferences.
-    
-       ----------------------------------------------------------------
-       PYTHON UV PROJECTS (most common case in 2026):
-       ----------------------------------------------------------------
-       Use THIS structure for ANY Python project that uses `uv`:
-    
-       ```
-       scaffold/
-       ├── pyproject.toml          # name = derived from skill (see naming rules below)
-       ├── uv.lock                 # auto-generated by uv sync
-       ├── .python-version         # pinned Python version
-       ├── .gitignore              # .venv, __pycache__, .env, *.pyc
-       ├── README.md
-       ├── setup.sh                # just runs: uv sync && echo "Ready!"
-       ├── src/
-       │   └── <package_name>/     # importable package (see naming rules)
-       │       ├── __init__.py
-       │       └── main.py         # user-editable file with # TODO markers
-       └── tests/
-           ├── __init__.py
-           └── test_main.py
-       ```
-    
-       SETUP (automate everything):
-       - setup.sh does ONE thing: `uv sync` (auto-creates .venv, installs all deps)
-       - NO `python -m venv`, NO `pip install`, NO `requirements.txt`
-       - Include `pyproject.toml` with ALL deps pre-listed in `[project] dependencies`
-       - Dev deps go in `[dependency-groups] dev` (uv-native pattern)
-       - Include `uv.lock` so installs are reproducible
-       - Include `.python-version` to pin the Python version
-       - Test script lives INSIDE scaffold/ so `uv run` finds pyproject.toml directly
-       - OR: setup.sh + README.md with `uv sync && uv run pytest`
-    
-       ----------------------------------------------------------------
-       JAVASCRIPT / TYPESCRIPT PROJECTS:
-       ----------------------------------------------------------------
-       - Use `package.json` with `npm install` or the user's preferred package manager
-       - Include minimal config files (tsconfig.json, .eslintrc, etc.)
-       - test script: `npm test`
-    
-       ----------------------------------------------------------------
-       GENERIC (all projects):
-       ----------------------------------------------------------------
-       - Minimal code structure — only the files the user needs to touch
-       - Comments marking where to write code // TODO: or # TODO:
-       - Import/require statements already in place
-       - Cross-skill integration: if the user knows {related_skill}, structure the scaffold to use familiar patterns from it
-       - If the topic is NOT a programming topic (e.g., system design), provide templates or worksheets instead
-    
-       ----------------------------------------------------------------
-       PROJECT NAMING RULES (MANDATORY — Python/Node/any):
-       ----------------------------------------------------------------
-       The project name in pyproject.toml / package.json MUST follow these rules:
-    
-       1. **Be descriptive & unique** — NEVER use generic names:
-          ❌ BAD: "app", "myapp", "project", "api", "backend", "core", "server"
-          ✅ GOOD: skill-derived kebab-case like "python-backend-fastapi-learning"
-    
-       2. **No PyPI conflicts** — The name must NOT match any dependency's PyPI name.
-          Search PyPI to verify. If it matches, rename. Common conflicts: "app", "api",
-          "fastapi" (if adding fastapi as dep), "uvicorn", "pydantic".
-    
-       3. **Rule for Python projects**:
-          - `pyproject.toml` name (distribution name): kebab-case with hyphens
-          - Import package name (directory): same name with hyphens → underscores
-          - Example:
-            | Skill | "Python-Backend-FastAPI" |
-            | Project name | `python-backend-fastapi-learning` |
-            | Package dir | `src/python_backend_fastapi_learning/` |
-          - Derive from skill name: lowercase the skill, replace spaces/slashes with hyphens, append "-learning"
-    
-       4. **Rule for Node projects**:
-          - `package.json` name: @scope/kebab-case (e.g., `@omnilearn/react-learning`)
-          - Main entry: `src/index.js` or `src/index.ts`
-    
-       ----------------------------------------------------------------
-       ANNOYING THINGS TO NEVER DO:
-       ----------------------------------------------------------------
-       - Do NOT make the user manually create a venv or install packages unless the assignment is specifically about that
-       - Do NOT leave unlisted imports — if a package is needed, it must be in pyproject.toml / package.json as a dependency
-       - Do NOT create requirements.txt — use pyproject.toml exclusively for Python uv projects
-       - Do NOT run `uv` commands from a directory without a pyproject.toml (unless using `--no-project`)
-       - Do NOT place test.sh outside the scaffold directory — it causes uv project discovery failures
-       - Do NOT require the user to set up databases, API keys, or external services without providing clear instructions or a docker-compose.yml
-       - Do NOT leave configuration files empty or incomplete — provide working defaults
-       - Do NOT make the user hunt for the right Python/Node version — specify it in the scaffold or use `.nvmrc`/`.python-version`
-       - Do NOT use project name "app" — it conflicts with the PyPI "app" package and breaks uv
+   c) scaffold/ directory with starter files - SAME GOLDEN RULE as before
+      (Follow the uv-native scaffold structure from the existing conventions)
    
-   d) solution-guide.md — CRITICAL: Must be researched, accurate, and complete.
+   d) solution-guide.md — Must be researched and accurate
+      (Same structure as before, but references this subtopic's explanation)
    
-      BEFORE writing the solution:
-      1. Use google_search / context7_query-docs to research the CORRECT approach for this specific problem.
-      2. Verify your solution compiles/runs correctly — test it mentally or note any assumptions.
-      3. Cross-reference with topic-explanation.md to ensure consistency.
-      4. If the topic involves a library/framework, check official docs via context7 to confirm API accuracy.
-      
-      The solution-guide.md must have this structure:
-      
-      ## Solution Overview
-      - What approach was taken and why (1 paragraph)
-      - Key decisions made and the tradeoffs considered
-      
-      ## Complete Solution
-      ```{language}
-      # The full, working solution code
-      # Each section commented with WHY, not just WHAT
-      ```
-      
-      ## Step-by-Step Explanation
-      - Break the solution into logical steps
-      - For each step: what it does, why it's done this way, what would happen if you did it differently
-      - Reference the topic-explanation.md concepts being applied
-      
-      ## Edge Cases Handled
-      - List edge cases the solution handles
-      - What would break if not handled
-      
-      ## Alternative Approaches
-      - At least one alternative solution approach
-      - Why the main approach was chosen over alternatives
-      
-      ## Common Mistakes
-      - 3-5 specific mistakes learners make on this type of problem
-      - How to identify and fix each one
-      
-      ## Real-World Notes
-      - How this solution would differ in a production codebase
-      - Performance, security, or maintainability considerations
+   4c) Create subtopic-progress.md at:
+     {TOPICS_DIR}/{topic}/subtopics/01-{subtopic-name}/subtopic-progress.md
    
-STEP 5 — Create topic-progress.md at:
-   {TOPICS_DIR}/{topic}/topic-progress.md
-
-   This is the AUTHORITATIVE progress tracker for this topic. Structure:
-   
-   # Progress: {topic}
+   Structure:
+   # Progress: {subtopic name}
    
    ## Status
    - Overall: 🔵 In Progress
    - Started: {date}
-   - Last activity: {date}
    
    ## Assignments
    1. **01-{concept}** — 🟢 Not Started
-      <!-- Update to 🔵 In Progress when started, ✅ Completed when done -->
    
    ## Learning Sessions
    | Date | Activity | Run Log |
-   |------|----------|---------|
-   | {date} | Topic started, first assignment created | runs/{run-id}/agent-log.md |
    
    ## Skills Demonstrated
-   <!-- Record real-world skills the user has shown -->
+
+   STEP 5 — Create topic-progress.md at:
+     {TOPICS_DIR}/{topic}/topic-progress.md
+
+   This tracks progress at BOTH topic level and subtopic level:
+
+   # Progress: {topic}
+
+   ## Status
+   - Overall: 🔵 In Progress
+   - Started: {date}
+   - Last activity: {date}
+   - Subtopics: 1/{total_subtopics} started
+
+   ## Subtopic Progress
+   | # | Subtopic | Status | Assignments | Link |
+   |---|----------|--------|-------------|------|
+   | 1 | **01-{name}** | 🔵 In Progress | 0/1 completed | subtopics/01-{name}/subtopic-progress.md |
+   | 2 | **02-{name}** | 🟢 Not Started | — | — |
+   | ... | ... | ... | ... | ... |
+
+   ## Learning Sessions
+   | Date | Activity | Run Log |
+   |------|----------|---------|
+   | {date} | Topic started, first subtopic created | runs/{run-id}/agent-log.md |
+
+   ## Skills Demonstrated
    
-   Also update progress-index.md at the skill level to point to this topic:
-   - Add topic entry with status 🔵 In Progress and a link to topic-progress.md
+   Also update progress-index.md at the skill level to point to this topic.
 
 5. MUST NOT DO:
-   - Do NOT create all assignments at once — only the first one. Subsequent assignments are generated on-demand as the user progresses.
-   - Do NOT make assignments purely theoretical — use real-world scenarios
-   - Do NOT skip the scaffold — the user should be able to start coding immediately
-   - Do NOT make topic-explanation.md a wall of text — use whitespace, headings, examples, and checkpoints to break it up. Each layer should take 3-5 minutes to read. The full document is a thorough deep-dive, not a skim.
-   - Do NOT use any external packages that aren't standard library without noting it
-   - Do NOT create assignments that are too easy (basic concept application) or too hard (leaps without foundation)
-   - Do NOT leave TODOs in scaffold that require making unrelated architectural decisions
-   - **Do NOT write solutions without researching first** — use google_search or context7 to verify API syntax, library behavior, and best practices before writing solution-guide.md
-   - **Do NOT guess** — if you're unsure how a library function works, look it up via context7. Guesses lead to inaccurate solutions.
-   - **Do NOT use `pip install`, `python -m venv`, or `requirements.txt` in Python scaffolds** — use `uv sync` and `pyproject.toml`
-   - **Do NOT name the project "app" or any generic name** — use the skill-derived naming rules (see STEP 4)
-   - **Do NOT generate scaffolds with flat layout (`app/` at root)** — use `src/` layout for production-quality structure
+   - Do NOT create a single massive topic-explanation.md covering all subtopics — this violates chunking and cognitive load principles. Each subtopic gets its own focused explanation.
+   - Do NOT create all subtopics upfront — only the first. Subsequent subtopics are generated on-demand as the user progresses through them.
+   - Do NOT create all assignments at once — only the first subtopic's first assignment. More are generated adaptively.
+   - Do NOT skip scaffolds — the user needs a starting point.
+   - Do NOT make topic-overview.md longer than ~5 min read — it's an orientation, not a lesson.
+   - Do NOT let any subtopic-explanation.md cover multiple concepts — if it does, split into more subtopics.
+   - Do NOT make assignments purely theoretical — use real-world scenarios.
+   - Do NOT use `pip install`, `python -m venv`, or `requirements.txt` in Python scaffolds — use `uv sync` and `pyproject.toml`.
+   - Do NOT name the project "app" or any generic name — use the skill-derived naming rules.
+   - Do NOT generate scaffolds with flat layout (`app/` at root) — use `src/` layout.
+   - Do NOT write solutions without researching first — use google_search or context7 to verify.
+   - Do NOT guess — if unsure about API syntax, look it up via context7.
 
 6. CONTEXT:
-   - Skill: {skill} — DERIVE THE PROJECT NAME FROM THIS using naming rules in STEP 4
+   - Skill: {skill} — DERIVE PROJECT NAMES FROM THIS
    - Topic: {topic}
    - Topics directory: {TOPICS_DIR}/{topic}/
+   - Subtopics directory: {TOPICS_DIR}/{topic}/subtopics/
    - User experience level: {from preferences}
    - User learning style: {from preferences}
-   - Skill conventions (package manager, project structure, deps, testing setup): {from SkillConventions.md — read before generating scaffold. If SkillConventions.md doesn't exist, read SkillPreferences.md}
-   - Cross-skill context (other skills user knows, so scaffold can use familiar patterns): {from cross-skill inventory}
+   - Skill conventions: {from SkillConventions.md — read before generating scaffold. If missing, read SkillPreferences.md}
+   - Cross-skill context: {from cross-skill inventory}
 ")
-```
 
 After completion, verify:
-- topic-roadmap.md exists with proper structure
-- **topic-explanation.md exists with all required sections (Why This Matters, Prerequisites, Layer 1, Layer 2, Learning Checkpoints, Ready to Practice)**
-- Assignment 1 exists with all 4 files (question.md, test, scaffold, solution-guide.md)
-- Test script is syntactically valid (run a quick check)
+- topic-overview.md exists — big picture orientation (5 min read)
+- topic-roadmap.md exists — index with subtopic list
+- subtopics/01-{name}/subtopic-explanation.md exists with all layers
+- subtopics/01-{name}/assignments/01-{concept}/ exists with question.md, test, scaffold, solution-guide.md
+- subtopics/01-{name}/subtopic-progress.md exists
+- topic-progress.md tracks at subtopic level
+- Test script is syntactically valid
 
 If anything is missing, fix via session continuation: `task(task_id="<session_id>", prompt="Fix: {missing element}")"
 
-## Phase 1.5: READINESS GATE — Teach Before Test
+## Phase 1.5: READINESS GATE — Orient Then Dive Deep
 
 **The user MUST read the theory before touching assignments.** This is non-negotiable.
+However, they do NOT read everything at once. They follow a CYCLE: read topic overview → pick a subtopic → read that subtopic's explanation → do that subtopic's assignment.
 
-1. Present the topic-explanation.md to the user:
-> "Before we jump into coding, let's cover the concepts you need.
->
-> 📖 **{SKILL_DIR}/topics/{topic}/topic-explanation.md**
->
-> This covers: Why This Matters → Prerequisites → Layer 1 (Core Idea) → Layer 2 (How It Works) → Layer 3 (Production Context) → Learning Checkpoints → Ready to Practice
-> It should take about 5-10 minutes to read.
->
-> Let me know when you've finished reading, or ask me questions about anything that's unclear."
+### Step 1: Present the Topic Overview (Big Picture)
 
-2. **Wait for the user to confirm they've read it.** Do NOT skip this step.
-   - If they ask questions → answer them (using diagnostic task pattern from Phase 3 if needed)
-   - If they say "I already know this" → ask 2 quick concept-checking questions to verify. If they pass, skip. If they fail, tell them to read it.
-   - If they say "ready" → proceed.
+Present `topic-overview.md`:
 
-3. **Only after confirmation** → proceed to Phase 2.
+> "Before we dive into details, here's the big picture.
+>
+> 📖 **{SKILL_DIR}/topics/{topic}/topic-overview.md**
+>
+> This will give you the lay of the land: what we'll learn, how the subtopics fit together, and what you'll build. About 5 minutes to read.
+>
+> Let me know when you've finished, and I'll guide you through the first subtopic."
+
+### Step 2: Present the First Subtopic
+
+After the user confirms, present the first subtopic:
+
+> "Now let's dive deep into **{subtopic name}**, the first building block.
+>
+> 📖 **{SKILL_DIR}/topics/{topic}/subtopics/01-{name}/subtopic-explanation.md**
+>
+> This covers: Why This Matters → Prerequisites → Core Idea → How It Works → Production Context → Checkpoints
+> About {X}-{Y} minutes to read.
+>
+> After this, you'll jump straight into a hands-on assignment for this exact subtopic.
+>
+> Let me know when you're ready, or ask any questions!"
+
+### Step 3: Wait for Confirmation
+
+- If they ask questions → answer them (using diagnostic task pattern from Phase 3 if needed)
+- If they say "I already know this" → ask 2 quick concept-checking questions to verify. If they pass, skip the explanation. If they fail, tell them to read it.
+- If they say "ready" → proceed to Phase 2.
+
+### Learning Flow (Cyclic)
+
+The user cycles through subtopics one at a time:
+
+```
+topic-overview.md  →  subtopic-1 explanation  →  assignment-1  → 
+                      subtopic-2 explanation  →  assignment-2  →
+                      subtopic-3 explanation  →  assignment-3  →
+                      cross-subtopic integration assignment
+```
+
+Each subtopic follows: **Read explanation → Do assignment → Advance to next subtopic**.
+This spaced, chunked approach produces dramatically better retention than cramming all theory upfront.
 
 ## Phase 2: ASSIGNMENT PRESENTATION
 
 ### 2.1 Read the Current Assignment
 
-Read the assignment files for the current topic:
-- `question.md` — to understand what to present
+Read the assignment files for the current subtopic:
+- Read the subtopic's `subtopic-explanation.md` — to understand the theory context
+- Read `question.md` — to understand what to present
 - Check if any work has already been done (are there user files in the assignment directory?)
+
+Determine which subtopic the user is on by reading `topic-progress.md`:
+- Which subtopic is 🔵 In Progress?
+- Which assignment within that subtopic are they on?
+- If no subtopic is in progress, they should start with subtopic 01.
 
 ### 2.2 Present the Assignment to the User
 
 ```markdown
 ┌──────────────────────────────────────────────────────────────────┐
 │  📚 Topic: {topic}                                               │
+│  📂 Subtopic: {subtopic-name} ({subtopic-n}/{subtopic-total})     │
 │  📝 Assignment: {assignment-name} ({n}/{total})                  │
 ├──────────────────────────────────────────────────────────────────┤
 │                                                                   │
 │  {brief description of the assignment}                           │
 │                                                                   │
-│  📖 Start here: topic-explanation.md — read the theory first     │
+│  📖 Theory: subtopic-explanation.md — read this first             │
 │                                                                   │
 │  Files:                                                           │
-│  • Theory: {SKILL_DIR}/topics/{topic}/topic-explanation.md       │
-│  • Question: {SKILL_DIR}/topics/{topic}/assignments/             │
-│              01-{name}/question.md                                │
+│  • Subtopics: {SKILL_DIR}/topics/{topic}/subtopics/              │
+│  • Theory: .../{subtopic-name}/subtopic-explanation.md            │
+│  • Question: .../{subtopic-name}/assignments/01-{name}/question.md│
 │  • Scaffold: (same directory)/scaffold/                           │
 │  • Test: (same directory)/test.{ext}                              │
 │  • Solution guide: (same directory)/solution-guide.md             │
 │                                                                   │
 │  To work on this:                                                 │
-│  1. Read topic-explanation.md for the concepts                    │
+│  1. Read subtopic-explanation.md for THIS subtopic's concepts     │
 │  2. Read the question.md carefully                                │
-│  2. Use the scaffold to write your solution                       │
-│  3. Run the test to verify your solution                          │
-│  4. Ask me questions if you're stuck                              │
-│  5. When done, say \"I'm done\" or \"Check my solution\"         │
+│  3. Use the scaffold to write your solution                       │
+│  4. Run the test to verify your solution                          │
+│  5. Ask me questions if you're stuck                              │
+│  6. When done, say \"I'm done\" or \"Check my solution\"         │
 │                                                                   │
-│  Tip: Try to solve it yourself before looking at the solution     │
-│  guide. That's where the real learning happens.                   │
+│  Tip: Focus on THIS subtopic's concepts. The next subtopic will   │
+│  build on what you learn here — master this first.                │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
@@ -895,22 +839,19 @@ For each user interaction during the session:
 ### 4.1 When User Completes an Assignment
 
 1. Verify the solution is correct (run tests if possible).
-2. **Update `topic-progress.md`** — this is the AUTHORITATIVE source for per-topic progress:
 
-```bash
-# Read topic-progress.md, update assignment status from 🔵 In Progress to ✅ Completed
-# Add session entry to the Learning Sessions table
-# Update Skills Demonstrated with any new real-world skills the user showed
-```
+2. **Update `subtopic-progress.md`** — the per-subtopic tracker:
+   - Mark the assignment as ✅ Completed
+   - Add session entry to Learning Sessions
 
-3. **Update `progress-index.md`** at the skill level to reflect the change (this is an OVERVIEW index, not the source of truth):
+3. **Update `topic-progress.md`** — the topic-level overview:
+   - Update the subtopic row's assignment count and status
+   - Add session entry to the Learning Sessions table
+   - Update Skills Demonstrated
 
-```bash
-# Update progress-index.md to reflect the assignment completion
-# Keep it concise — just the status change, detailed tracking lives in topic-progress.md
-```
+4. **Update `progress-index.md`** at the skill level to reflect the change.
 
-4. **Conduct self-report debrief using the `question` tool** — You CANNOT calibrate from system metrics alone (partial observability). The user may have used external resources without your knowledge. Present these as structured polls:
+5. **Conduct self-report debrief using the `question` tool** — You CANNOT calibrate from system metrics alone (partial observability). The user may have used external resources without your knowledge. Present these as structured polls:
 
    ```
    question(questions=[{
@@ -941,224 +882,203 @@ For each user interaction during the session:
    }])
    ```
 
-5. **Present path forward with the `question` tool**, including difficulty choice:
+6. **Determine next step** — there are now TWO axes of progression:
+
+   **Axis A: More assignments within the SAME subtopic?**
+   - If more practice needed or user wants deeper work → generate next assignment within same subtopic
+   - If current subtopic is sufficiently mastered → move to NEXT SUBTOPIC
+
+   **Axis B: Advance to next subtopic?**
+   - Read `topic-roadmap.md` to determine the next subtopic in dependency order
+   - The next subtopic should build on the current one
+
+7. **Present path forward with the `question` tool**, including subtopic awareness:
 
    ```
    question(questions=[{
      header: "What's Next?",
-     question: "What would you like to do next?",
+     question: "You've completed the {subtopic-name} subtopic. What now?",
      options: [
-       {label: "Next assignment — you decide difficulty", description: "You pick how hard the next one should be"},
-       {label: "Next assignment — default difficulty", description: "Based on how you did"},
-       {label: "More practice", description: "Similar exercises on this concept"},
+       {label: "Next subtopic: {next-subtopic}", description: "Move to the next learning unit"},
+       {label: "More practice on this", description: "Another assignment on {current-subtopic}"},
        {label: "Switch topics", description: "Move to a different topic on the roadmap"},
        {label: "Take a break", description: "End session and save progress"},
      ]
    }])
    ```
 
-   If they chose "Next assignment — you decide difficulty", follow up with:
-
+   If they chose "Next subtopic", also offer difficulty choice:
    ```
    question(questions=[{
-     header: "Choose Difficulty",
-     question: "What difficulty should the next assignment be?",
+     header: "Next Subtopic Readiness",
+     question: "How would you like to approach the next subtopic?",
      options: [
-       {label: "Easier", description: "More scaffolding, guided steps"},
-       {label: "Same level", description: "Similar challenge, different scenario"},
-       {label: "Harder", description: "More complex, combine concepts"},
-       {label: "Surprise me", description: "Based on your judgment"},
+       {label: "Read explanation → do assignment", description: "Full learning cycle"},
+       {label: "I know this — jump to assignment", description: "Skip theory, go straight to practice"},
+       {label: "Surprise me", description: "Choose the best approach for me"},
      ]
    }])
    ```
 
-6. **Calibrate using self-report + test results** (recommendation, not command — user's choice overrides):
-   - **Tests pass + "Just Right"/"Too Easy" + "Very confident"** → user can safely advance.
-   - **Tests pass + "Too Hard" or "Heavy use for concepts"** → recommend a bridging assignment, but respect if user pushes forward.
-   - **Tests pass + "Not really confident"** → recommend more practice, but respect user's choice.
-   - **Tests don't pass** → **user cannot proceed.** Offer regressed variant. Explain why.
-   - **User chose a difficulty** → honor it. Generate the next assignment at their chosen level.
+8. **Calibrate using self-report + test results** (recommendation, not command — user's choice overrides):
+   - **Tests pass + "Just Right"/"Too Easy" + "Very confident"** → user can safely advance to next subtopic.
+   - **Tests pass + "Too Hard" or "Heavy use for concepts"** → recommend another assignment within same subtopic first, but respect if user wants to push forward.
+   - **Tests pass + "Not really confident"** → recommend more practice within same subtopic, but respect user's choice.
+   - **Tests don't pass** → **user cannot proceed to next subtopic.** Offer regressed variant. Must master current subtopic first.
+   - **User chose a specific next step** → honor it.
 
-7. Update `SkillPreferences.md` with the self-report data and user's choice.
+9. Update `SkillPreferences.md` with the self-report data and user's choice.
+10. If advancing to next subtopic: the next call will generate that subtopic's explanation + first assignment on-demand.
 
 ### 4.2 Generate Next Assignment (On-Demand)
 
-When the user wants to proceed, generate the next assignment:
+When the user wants to proceed, there are TWO scenarios:
+
+**Scenario A: More assignments within the CURRENT subtopic**
+The user wants deeper practice on the concept they just learned.
+→ Generate another assignment in the same subtopic's assignments/ directory.
+
+**Scenario B: Advance to the NEXT subtopic**
+The user has mastered the current subtopic and wants to move on.
+→ Generate the NEXT subtopic's explanation AND its first assignment.
+
+Determine which scenario by reading `topic-progress.md` and checking the user's choice from Phase 4.1 step 7.
+
+---
+
+**Scenario A: More assignments within same subtopic:**
 
 ```typescript
 task(category="unspecified-high", run_in_background=false, timeout=300000, prompt="
-1. TASK: Create the next assignment ({assignment-num}) for topic '{topic}' in skill '{skill}'.
-2. EXPECTED OUTCOME: Complete assignment with question.md, test script, scaffold, and solution-guide.md at the next difficulty level.
+1. TASK: Create next assignment ({assignment-num}) within subtopic '{subtopic}' for topic '{topic}' in skill '{skill}'.
+2. EXPECTED OUTCOME: Complete assignment at the requested difficulty, focused on THIS subtopic's concepts.
 
 3. REQUIRED TOOLS: google_search, websearch_web_search_exa, context7_query-docs, read, write
 
 4. MUST DO:
-   - **CURRENT DATE: {CURRENT_DATE}** — ONLY use current, real-world scenarios. Avoid outdated APIs, deprecated libraries, or superseded best practices. Research what's current in the industry for this topic.
-   - Read the topic-roadmap.md: {TOPICS_DIR}/{topic}/topic-roadmap.md
+   - **CURRENT DATE: {CURRENT_DATE}** — ONLY use current, real-world scenarios.
+   - Read the subtopic-explanation.md: {SUDTOPIC_DIR}/subtopic-explanation.md (stay focused on THIS subtopic's concepts)
    - Read the previous assignment(s) to ensure progression: {ASSIGNMENT_DIR}
-   - Read the user's learning preferences and history from {SKILL_PREFS}
-   - Research online for real-world applications of this topic at this difficulty level
-   - Create the assignment with INCREASING difficulty following this PATTERN (more levels can be added as needed):
-     * Assignment 1: Basic understanding and application
-     * Assignment 2: Intermediate — combine concepts, handle edge cases  
-     * Assignment 3: Real-world — full scenario, multiple concerns, best practices
-     * (Additional assignments can be created if the user needs more depth or practice)
-   - For each assignment, create these files in:
-     {TOPICS_DIR}/{topic}/assignments/0{n}-{concept-name}/
-   
-   a) question.md — Include:
-     - Learning objectives
-     - Real-world scenario description
-     - Technical requirements
-     - Acceptance criteria (how to know it's done)
-     - Hints (separate section, user can choose to read)
-   
-   b) test.{ext} — Automated validation:
-     - Language-appropriate test framework
-     - Unit tests + edge cases
-     - Clear failure messages
-     - Self-contained and runnable
-   
-    c) scaffold/ — Starter code:
-    
-       GOLDEN RULE: The user must go from `cd scaffold/` to running tests in ONE command.
-    
-       The scaffold MUST follow SkillConventions.md (or SkillPreferences.md if conventions file doesn't exist).
-    
-       ----------------------------------------------------------------
-       PYTHON UV PROJECTS (most common case in 2026):
-       ----------------------------------------------------------------
-       Use THIS structure:
-    
-       ```
-       scaffold/
-       ├── pyproject.toml          # name = skill-derived (see naming rules below)
-       ├── uv.lock                 # auto-generated by uv sync
-       ├── .python-version         # pinned Python version
-       ├── .gitignore              # .venv, __pycache__, .env, *.pyc
-       ├── README.md
-       ├── setup.sh                # just runs: uv sync
-       ├── src/
-       │   └── <package_name>/     # importable package (skill-derived)
-       │       ├── __init__.py
-       │       └── main.py
-       └── tests/
-           ├── __init__.py
-           └── test_main.py
-       ```
-    
-       SETUP RULES:
-       - setup.sh: `uv sync` only (auto-creates .venv, installs all deps)
-       - NO `python -m venv`, NO `pip install`, NO `requirements.txt`
-       - pyproject.toml with ALL deps pre-listed, dev deps in `[dependency-groups] dev`
-       - Test file lives INSIDE scaffold/ so `uv run` finds pyproject.toml
-        
-       ----------------------------------------------------------------
-       JAVASCRIPT / TYPESCRIPT / OTHER:
-       ----------------------------------------------------------------
-       - Node: package.json with npm install or user's preferred package manager
-       - Rust: Cargo.toml with cargo build
-       - Follow SkillConventions.md for the exact structure
-    
-       ----------------------------------------------------------------
-       PROJECT NAMING RULES (MANDATORY — same as Phase 1.4):
-       ----------------------------------------------------------------
-       - NEVER use generic names: "app", "myapp", "project", "api", "backend", "core", "server"
-       - USE: skill-derived kebab-case, e.g., "python-backend-fastapi-learning"
-       - The project name must NOT match any dependency's PyPI name (check before choosing)
-       - Python: project name = kebab-case, package dir = same with underscores
-         Example: name="python-backend-fastapi-learning", src/python_backend_fastapi_learning/
-       - Derive from skill name: lowercase skill, replace special chars with hyphens, append "-learning"
-    
-       ----------------------------------------------------------------
-       ANNOYING THINGS TO NEVER DO:
-       ----------------------------------------------------------------
-       - Do NOT make the user manually create a venv or install packages unless the assignment specifically tests that skill
-       - Do NOT create requirements.txt — use pyproject.toml exclusively for Python uv projects
-       - Do NOT run `uv` commands from a directory without pyproject.toml (unless using `--no-project`)
-       - Do NOT place test.sh outside scaffold/ — it breaks uv project discovery
-       - Do NOT use project name "app" — conflicts with PyPI "app" package and breaks uv
-       - Do NOT leave unlisted imports — every dep must be in pyproject.toml / package.json
-   
-   d) solution-guide.md — CRITICAL: Must be researched and accurate.
-   
-      BEFORE writing:
-      1. Use google_search / context7_query-docs to research the correct approach.
-      2. Verify the solution works — test mentally or note assumptions.
-      3. Cross-reference with previous solution-guide.md files to maintain consistency.
-      
-      Structure:
-      
-      ## Solution Overview
-      - Approach taken, key decisions, tradeoffs
-      
-      ## Complete Solution
-      ```{language}
-      # Full working code with WHY comments, not just WHAT
-      ```
-      
-      ## Step-by-Step Explanation
-      - Logical steps with reasoning for each
-      - What changes at this difficulty level vs previous assignments
-      
-      ## Edge Cases Handled
-      - What was considered and why
-      
-      ## Alternative Approaches
-      - Other valid solutions and when to use them
-      
-      ## Common Mistakes
-      - Specific errors learners make at this difficulty level
-      
-      ## Production Notes
-      - How this scales, performs, or differs in real codebases
+   - Research online for real-world applications specific to this subtopic
+   - Create the assignment at the user-chosen difficulty:
+     * Easier: More scaffolding, guided steps, same concepts (if user struggled)
+     * Same level: Similar challenge with different scenario (if user wants consolidation)
+     * Harder: More complex, combines subtopic concepts with edge cases (if user breezed through)
+   - Save files to: {SUDTOPIC_DIR}/assignments/0{n}-{concept-name}/
+   - Follow the same scaffold, naming, and solution-guide conventions from Phase 1.4
 
-5. MUST DO (research before generation):
-   - **Research FIRST** — Use context7 or google_search to verify your solution approach before writing
-   - **Cross-reference** with topic-explanation.md and prior solution-guide.md files
-   - **Verify accuracy** — If you're unsure about API syntax or behavior, look it up. Do not guess.
-   
-6. MUST NOT DO:
-   - Do NOT make the next assignment a repetition of the previous one
-   - Do NOT skip difficulty progression
-   - Do NOT write solutions without researching first
-   - Do NOT use external non-standard dependencies without noting it in scaffold setup
-   - Do NOT guess API signatures — use context7 to verify
-   - **Do NOT use `pip install`, `python -m venv`, or `requirements.txt` in Python scaffolds** — use `uv sync` and `pyproject.toml`
-   - **Do NOT name the project "app" or any generic name** — use skill-derived naming rules
-   - **Do NOT generate scaffolds with flat layout** — use `src/` layout for production-quality structure
+5. MUST NOT DO:
+   - Do NOT introduce concepts from other subtopics — keep it focused on THIS subtopic
+   - Do NOT skip the scaffold
+   - Do NOT reuse the exact same scenario from previous assignments
+   - Do NOT use `pip install`, `python -m venv`, or `requirements.txt` in Python scaffolds
 
-7. CONTEXT:
-   - Skill: {skill} — DERIVE THE PROJECT NAME FROM THIS using naming rules
+6. CONTEXT:
+   - Skill: {skill}
    - Topic: {topic}
-   - Assignment number: {n}
-   - User-chosen difficulty: {user_chosen_difficulty} — honor this EXACTLY: Easier (more scaffolding, guided steps) / Same level (similar challenge, different scenario) / Harder (more complex, combine concepts) / Surprise me (use your best judgment based on the data)
+   - Subtopic: {subtopic}
+   - Subtopic directory: {SUDTOPIC_DIR}/
+   - User-chosen difficulty: {difficulty} — honor this EXACTLY
    - Previous assignment concepts: {summary}
-   - User self-report data: difficulty={self_reported_difficulty}, external_help={external_help_level}, confidence={confidence_level}
-   - Skill conventions (package manager, project structure, deps, testing setup): {from SkillConventions.md — MUST follow these when generating scaffold. If SkillConventions.md doesn't exist, read SkillPreferences.md}
-   - Cross-skill context (other skills the user knows): {from cross-skill inventory — integrate these patterns into the scaffold if relevant}
+   - User self-report: difficulty={self_reported}, external_help={help_level}, confidence={confidence}
 ")
 ```
 
+---
+
+**Scenario B: Create next subtopic + its first assignment:**
+
+```typescript
+task(category="deep", run_in_background=false, timeout=600000, prompt="
+1. TASK: Create the next subtopic '{next-subtopic}' for topic '{topic}' in skill '{skill}'.
+2. EXPECTED OUTCOME: subtopic-explanation.md, first assignment (question, test, scaffold, solution-guide), and subtopic-progress.md for the next subtopic.
+
+3. REQUIRED TOOLS: google_search, websearch_web_search_exa, context7_query-docs, read, write, bash, grep
+
+4. MUST DO:
+   - **CURRENT DATE: {CURRENT_DATE}** — ONLY use current info. Research extensively (5+ searches) for this specific subtopic.
+   - Read the topic-roadmap.md: {TOPICS_DIR}/{topic}/topic-roadmap.md (understand dependency order)
+   - Read the topic-overview.md: {TOPICS_DIR}/{topic}/topic-overview.md (understand context)
+   - Read the previous subtopic's explanation to ensure proper progression: {PREV_SUDTOPIC_DIR}/subtopic-explanation.md
+   - Research THIS subtopic independently — do NOT reuse content from previous subtopics
+   
+   Create:
+   4a) subtopic-explanation.md at:
+     {TOPICS_DIR}/{topic}/subtopics/{next-subtopic-num}-{name}/subtopic-explanation.md
+   
+   Follow the same 3-layer format from Phase 1.4 Step 4a:
+   - Why This Matters (scoped to THIS subtopic)
+   - Prerequisites (link to previous subtopic if needed)
+   - Layer 1: Core Idea (1-2 paragraphs)
+   - Layer 2: How It Works (commands, code, examples — researched)
+   - Layer 3: Production Context (misconceptions, edge cases, trade-offs)
+   - Learning Checkpoints (3-5 questions)
+   - Ready to Practice (link to assignment)
+   
+   4b) First assignment at:
+     {TOPICS_DIR}/{topic}/subtopics/{next-subtopic-num}-{name}/assignments/01-{concept}/
+   
+   Same structure as Phase 1.4 Step 4b:
+   - question.md
+   - test.{ext}
+   - scaffold/ (with all conventions)
+   - solution-guide.md
+   
+   4c) subtopic-progress.md at:
+     {TOPICS_DIR}/{topic}/subtopics/{next-subtopic-num}-{name}/subtopic-progress.md
+   
+   Update topic-progress.md at the topic level to add the new subtopic row.
+
+5. MUST NOT DO:
+   - Do NOT cover concepts from the NEXT subtopic after this one — stay focused
+   - Do NOT repeat content from the previous subtopic
+   - Do NOT skip research — each subtopic needs independent research
+   - Do NOT use `pip install`, `python -m venv`, or `requirements.txt`
+
+6. CONTEXT:
+   - Skill: {skill}
+   - Topic: {topic}
+   - Previous subtopic: {prev_subtopic}
+   - Next subtopic: {next_subtopic}
+   - Next subtopic number: {n}
+   - Topics directory: {TOPICS_DIR}/{topic}/
+")
+```
+
+After creating the next subtopic, present it to the user (same pattern as Phase 1.5 Step 2-3).
+
 ### 4.3 When All Assignments Are Complete
 
-When all required assignments for a topic are done (the topic-roadmap defines how many; the default progression is 3 but more can be added):
+### 4.3 When All Subtopics Are Complete
 
-1. **Update `topic-progress.md`** — set overall status to ✅ Completed, finalize all assignment statuses.
-2. **Update `progress-index.md`** — mark topic as ✅ Completed (this is the overview index).
-3. **Update `roadmap.md`** — change topic progress marker to ✅.
-4. Update `SkillPreferences.md` — note topic completion, record competencies demonstrated.
-5. Append to `UserPreferences.md` if the user demonstrated strong affinities or struggles.
-6. Ask the user:
-> "Great work completing **{topic}**! 🎉
+When ALL subtopics for a topic are completed (all subtopics in the topic-roadmap marked ✅):
+
+1. **Create a cross-subtopic integration assignment** (optional — ask the user if they want one):
+   - This assignment combines concepts from ALL subtopics into a real-world scenario
+   - Save to: {TOPICS_DIR}/{topic}/assignments/01-{integration-name}/
+   - This is the capstone — the user demonstrates they can use everything together
+
+2. **Update `topic-progress.md`** — set overall status to ✅ Completed, finalize all subtopic statuses.
+
+3. **Update `progress-index.md`** — mark topic as ✅ Completed (this is the overview index).
+
+4. **Update `roadmap.md`** — change topic progress marker to ✅.
+
+5. Update `SkillPreferences.md` — note topic completion, record competencies demonstrated.
+
+6. Append to `UserPreferences.md` if the user demonstrated strong affinities or struggles.
+
+7. Ask the user:
+> "Great work completing **{topic}**! You mastered {N} subtopics. 🎉
 >
 > Options:
 > 1. **Next topic**: {next_recommended_topic}
 > 2. **Choose your own**: pick from the roadmap
-> 3. **Review & reinforce**: practice more on this topic
-> 4. **Done for now**: end this session"
+> 3. **Cross-subtopic integration project**: combine everything you learned
+> 4. **Review & reinforce**: practice more on specific subtopics
+> 5. **Done for now**: end this session"
 
-5. If continuing, loop back to Phase 1 (topic selection).
+8. If continuing, loop back to Phase 1 (topic selection).
 
 ## Phase 5: UPDATE PREFERENCES & PROGRESS
 
@@ -1267,14 +1187,17 @@ If no git repo: ask if user wants to initialize one (same as /omnilearn-roadmap)
 | Skill roadmap exists | 0 | Tell user to run /omnilearn-roadmap first |
 | User preferences read | 0 | Read the files |
 | Topic roadmap exists (if needed) | 1.4 | Create it via deep subagent |
-| topic-explanation.md exists with all sections (Why This Matters, Prerequisites, Layer 1, Layer 2, Layer 3, Learning Checkpoints, Ready to Practice) | 1.4 | Re-generate — topic-explanation.md is mandatory |
-| topic-explanation.md is a proper deep-dive (not shallow, not a wall of text) | 1.4 | Add more depth or break into sections with whitespace and examples |
+| Topic overview exists (topic-overview.md) | 1.4 | Create it via deep subagent — 5 min read, big picture only |
+| Subtopic explanation exists (subtopics/01-*/subtopic-explanation.md) with all sections (Why This Matters, Layer 1, Layer 2, Layer 3, Learning Checkpoints) | 1.4 | Re-generate — each subtopic MUST have its own focused explanation |
+| subtopic-explanation.md covers ONE subtopic only (no concept cramming) | 1.4 | If multiple concepts are present, split into separate subtopics |
 | Assignment 1 exists (question, test, scaffold, solution) | 1.4 | Fix incomplete assignment |
 | Assignment tests are syntactically valid | 1.4 | Quick syntax check, fix if broken |
-| topic-progress.md created when topic roadmap is made | 1.4 | Create it with proper structure |
-| topic-progress.md updated on each assignment completion | 4 | Update immediately — this is the source of truth |
+| subtopic-progress.md created for each subtopic | 1.4 | Create with per-subtopic tracking |
+| topic-progress.md tracks at subtopic level (not just topic) | 1.4 | Add subtopic rows with status and links |
+| topic-progress.md updated on each assignment completion | 4 | Update immediately — update both subtopic-progress.md and topic-progress.md |
 | Self-report debrief conducted (difficulty, external help, confidence) | 4 | Use `question` tool to collect structured responses. Log in SkillPreferences.md |
 | Calibration decision documented (which signals used, what was decided) | 4 | Write the reasoning in topic-progress.md |
+| Subtopic advancement decision made after each assignment (more practice or next subtopic) | 4 | Present options with `question` tool. Document choice. |
 | Interaction diagnostic task files written for user Q&A | 3 | Write task file, not just explanation |
 | progress-index.md updated after each completion | 4, 5 | Update immediately |
 | Agent log written for session | 5 | Write before session end |
@@ -1351,16 +1274,20 @@ After each assignment completion, the agent MUST ask these questions using the `
 |-----------|--------|
 | Skill/roadmap doesn't exist | Tell user to use /omnilearn-roadmap first |
 | User asks for a topic not in roadmap | Offer to add it (spawn roadmap-edit flow) |
-| User's code doesn't pass tests | Guide them with hints, not the answer |
-| User wants to skip to advanced | Assess readiness, warn if prerequisites missing, let them try |
-| User self-reports "Too Hard" but tests pass | Recommend bridging assignment, but respect if user wants to push forward. Their learning, their call. |
-| User self-reports "Not confident" | Recommend practice variant, but honor user's choice to advance if they prefer. |
-| User used heavy external resources for concepts | Recommend bridging exercise, but let user decide. They may feel ready despite external help. |
-| User chooses "Harder" after "Just Right" performance | Honor it. Generate a legitimately harder assignment. They know their capacity. |
-| User chooses "Easier" after passing easily | Honor it. They may want consolidation before advancing. Generate at requested difficulty. |
+| User's code doesn't pass tests | Guide them with hints, not the answer. Do NOT advance to next subtopic until tests pass. |
+| User wants to skip subtopic | Check if the next subtopic depends on current one. If independent, allow. If dependent, explain the dependency. |
+| User wants to skip to advanced topic | Assess readiness, warn if prerequisites missing, let them try |
+| User self-reports "Too Hard" but tests pass | Recommend more practice within same subtopic (bridging assignment), but respect if user wants to push to next subtopic. |
+| User self-reports "Not confident" | Recommend more practice within same subtopic, but honor user's choice to advance if they prefer. |
+| User used heavy external resources for concepts | Recommend another assignment within same subtopic, but let user decide. They may feel ready despite external help. |
+| User chooses "Harder" after "Just Right" performance | Honor it. Generate a legitimately harder assignment within the same subtopic. |
+| User chooses "Easier" after passing easily | Honor it. They may want consolidation before advancing. Generate at requested difficulty within same subtopic. |
 | User's difficulty choice conflicts with recommendation | Present your reasoning briefly, then defer to their choice: "Your call. I'll generate it at the level you asked for." |
-| Subagent produces low-quality assignment | Fix via continuation session, ensure all 4 files exist |
-| User gets frustrated | Adjust difficulty, offer more practice exercises, change approach |
+| User wants to revisit a previous subtopic | Allow it. Read that subtopic's explanation, offer a practice assignment. Don't force a linear path. |
+| Subagent produces low-quality assignment | Fix via continuation session, ensure all files exist |
+| Subtopic-explanation covers multiple concepts | Split into separate subtopics. File a continuation session to fix. |
+| User gets frustrated | Adjust difficulty, offer easier variant within current subtopic, or suggest taking a break. |
+| Session interrupted | Next session reads topic-progress.md — picks up at the current subtopic. |
 | Test script has errors | Fix the test script immediately |
 | Session interrupted | Next session reads progress-index.md and picks up where left off |
 | User wants different language/framework | Adapt scaffold and tests accordingly |
@@ -1368,6 +1295,7 @@ After each assignment completion, the agent MUST ask these questions using the `
 ## What You MUST Do
 
 - ✅ **Teach, don't test** — The goal is learning, not assessment. Every assignment is a teaching tool.
+- ✅ **ONE concept per subtopic** — Each subtopic-explanation.md covers EXACTLY ONE concept. If you need to explain multiple concepts, split into more subtopics. No cramming.
 - ✅ **Calibrate to ZPD** — First assignment should be baseline (easy, ~90% success). Adjust difficulty based on performance. Never start with max difficulty.
 - ✅ **Follow the 85% Rule** — ~85% familiar, ~15% new. If the user struggles with >30% of the task, it's outside ZPD — provide scaffolding or regress.
 - ✅ **Scaffold then fade** — Start with strong support (detailed hints, starter code, guided steps). Remove scaffolding as competence grows.
@@ -1375,17 +1303,17 @@ After each assignment completion, the agent MUST ask these questions using the `
 - ✅ **Acknowledge partial observability** — You CANNOT measure their effort or external resource use. Always do a structured self-report debrief after each assignment.
 - ✅ **Calibrate using BOTH self-report AND test results** — Tests passing ≠ understanding. Self-report "Too Hard" with tests passing means they brute-forced it. Adjust accordingly.
 - ✅ **Let the user's self-report override your assumptions** — If they say "Too Hard" or "Not confident," believe them, even if tests pass.
-- ✅ **Ask before deciding next steps** — Don't assume. Use the `question` tool with selectable options.
-- ✅ **Present options, don't decide for them** — Give the user choices (next assignment / more practice / switch topics / break). Let them pick.
+- ✅ **Ask before deciding next steps** — Don't assume. Use the `question` tool with selectable options. Present subtopic choices ("more practice on this subtopic" vs "next subtopic").
+- ✅ **Present options, don't decide for them** — Give the user choices (next subtopic / more practice / switch topics / break). Let them pick.
 - ✅ **Let users choose their difficulty** — Offer options: Easier / Same / Harder / Surprise me. Honor their choice even if it differs from your recommendation.
 - ✅ **User choice > system recommendation** — Present your assessment, but defer to user's decision. They know their learning better than any algorithm.
 - ✅ **Check roadmap exists before starting** — validate the skill is set up
-- ✅ **Read progress before each session** — know where the user left off
+- ✅ **Read progress before each session** — know which subtopic the user is on
 - ✅ **Generate assignments on-demand** — only create what's needed now
 - ✅ **Create topic roadmaps via deep subagent** — autonomous research + structure
-- ✅ **Progress lives in topic-progress.md** — assignment status, sessions, skills demonstrated. Runs/ contains only action logs.
+- ✅ **Progress lives in topic-progress.md and subtopic-progress.md** — topic level tracks subtopics, subtopic level tracks assignments. Runs/ contains only action logs.
 - ✅ **When user has a doubt, generate a diagnostic micro-task** — but make it EASIER than the main assignment (fills the ZPD gap)
-- ✅ **Update topic-progress.md after every state change** — never batch updates. Then sync progress-index.md (the overview)
+- ✅ **Update subtopic-progress.md after every state change** — never batch updates. Then sync topic-progress.md and progress-index.md.
 - ✅ **Log all interactions in runs/** — create interaction task files for Q&A, agent-log.md for session actions
 - ✅ **Update user preferences** — when you have clear signal
 - ✅ **Provide tasks, not answers** — guide the user to discover solutions through practice
@@ -1395,6 +1323,9 @@ After each assignment completion, the agent MUST ask these questions using the `
 
 ## What You MUST NOT Do
 
+- ❌ Do NOT create a single massive topic-explanation.md covering all subtopics — this violates chunking and cognitive load research. Each subtopic gets its own focused document.
+- ❌ Do NOT create all subtopics upfront — only the first. Rest are generated on-demand as the user progresses.
+- ❌ Do NOT allow any subtopic-explanation.md to cover multiple concepts — if it does, the subagent made a mistake. Split into more subtopics.
 - ❌ Do NOT create all assignments upfront — generate on-demand as user progresses
 - ❌ Do NOT start with max difficulty — always baseline first, then calibrate
 - ❌ Do NOT push the user beyond ZPD — if they're failing, regress and scaffold more
@@ -1406,13 +1337,14 @@ After each assignment completion, the agent MUST ask these questions using the `
 - ❌ Do NOT make all assignments the same difficulty — progression is critical. Each should be noticeably harder than the last.
 - ❌ Do NOT assume you know how the user performed — partial observability means you CAN'T see external resource use, study time, or effort. Always ask.
 - ❌ Do NOT rely on proxy metrics alone (time-to-complete, hints asked, test pass rate) — these are noisy signals that don't capture external help.
-- ❌ Do NOT advance the user based solely on tests passing — if they self-report "Too Hard" or low confidence, recommend bridging work first.
+- ❌ Do NOT advance the user to the next subtopic based solely on tests passing — if they self-report "Too Hard" or low confidence, recommend more practice within the current subtopic first.
+- ❌ Do NOT allow advancement to the next subtopic if tests don't pass — they must demonstrate mastery of the current subtopic first.
 - ❌ Do NOT force your recommendation over the user's choice — present your assessment, then defer. It's their learning journey.
 - ❌ Do NOT skip the difficulty choice step — always let the user choose their difficulty when generating the next assignment.
 - ❌ Do NOT present open-ended questions without options — use the `question` tool with selectable choices. The "Type your own answer" option handles anything they want to add.
 - ❌ Do NOT fix the number of assignments — add more if the user needs intermediate steps, remove if they're too easy
 - ❌ Do NOT let runs/ contain progress state — runs/ is for action logs only, topic-progress.md is the source of truth
-- ❌ Do NOT skip updating topic-progress.md — it's the authoritative progress record per topic
+- ❌ Do NOT skip updating subtopic-progress.md and topic-progress.md — both must be kept in sync
 - ❌ Do NOT lose the user's work or progress — always read topic-progress.md before acting
 - ❌ Do NOT push to remote without explicit user approval
 - ❌ Do NOT use `as any`, `@ts-ignore`, or equivalent in any code
