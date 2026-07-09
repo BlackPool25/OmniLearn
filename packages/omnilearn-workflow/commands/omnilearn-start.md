@@ -776,12 +776,75 @@ task(category="unspecified-high", run_in_background=false, prompt="
    - Are there edge cases not handled?
    - Could it be more efficient?
 4. Provide structured feedback. Be encouraging — the goal is teaching, not grading.
-5. **Calibrate next step based on performance:**
-   - **Passed easily (no hints, fast, clean code)** → great. Flag for next level: skip easier variants, go straight to stretch.
-   - **Passed with some hints or minor issues** → perfect ZPD. Proceed to next level normally.
-   - **Passed but needed significant help** → they're at the edge of ZPD. Consider an intermediate bridging assignment before the next difficulty level.
-   - **Did NOT pass tests** → **do NOT proceed.** They're outside ZPD. Offer a regressed easier variant or more scaffolding. Create an intermediate exercise that bridges the gap.
-6. Update topic-progress.md with the result and your calibration assessment.
+5. **Conduct a self-report debrief using the `question` tool** (critical — you CANNOT calibrate from observation alone due to partial observability). Present these as structured polls with selectable options. The open-ended "Type your own answer" option is available by default if the user wants to add anything:
+
+   ```
+   question(questions=[{
+     header: "Assignment Difficulty",
+     question: "How was the difficulty for you?",
+     options: [
+       {label: "Too Easy", description: "I finished quickly without much effort"},
+       {label: "Just Right", description: "Challenging but doable — I learned a lot"},
+       {label: "Too Hard", description: "I struggled significantly"},
+     ]
+   }, {
+     header: "External Resources",
+     question: "Did you use any external resources? (Google, docs, Stack Overflow, AI tools)",
+     options: [
+       {label: "None needed", description: "Solved it with what I know"},
+       {label: "Syntax lookups only", description: "Just checked syntax / API details"},
+       {label: "Used for concepts", description: "Had to look up explanations to understand"},
+       {label: "Heavy use", description: "Couldn't have solved it without external help"},
+     ]
+   }, {
+     header: "Confidence Level",
+     question: "How confident do you feel applying these concepts to a new problem?",
+     options: [
+       {label: "Very confident", description: "Could explain it to someone else"},
+       {label: "Mostly confident", description: "Could figure it out with a bit of effort"},
+       {label: "Not really", description: "Would need significant help"},
+     ]
+   }])
+   ```
+
+6. **Present path forward options with the `question` tool.** Include a difficulty choice option:
+
+   ```
+   question(questions=[{
+     header: "What's Next?",
+     question: "What would you like to do?",
+     options: [
+       {label: "Next assignment — you decide difficulty", description: "You pick how hard the next one should be"},
+       {label: "Next assignment — default difficulty", description: "I recommend the next level based on how you did"},
+       {label: "More practice on this", description: "Similar exercises to reinforce what I just learned"},
+       {label: "Switch topics", description: "Move to a different topic on the roadmap"},
+       {label: "Take a break", description: "End this session and save progress"},
+     ]
+   }])
+   ```
+
+   If they chose "Next assignment — you decide difficulty", follow up with:
+
+   ```
+   question(questions=[{
+     header: "Choose Difficulty",
+     question: "What difficulty should the next assignment be?",
+     options: [
+       {label: "Easier", description: "More scaffolding, guided steps, same concepts"},
+       {label: "Same difficulty", description: "Similar challenge level with different scenario"},
+       {label: "Harder", description: "More complex, combine concepts, new edge cases"},
+       {label: "Surprise me", description: "Based on what you've seen from me so far"},
+     ]
+   }])
+   ```
+
+7. **Calibrate using self-report + test results** (use as a recommendation, not a command — the user's choice overrides):
+   - **Tests pass + "Just Right" / "Too Easy" + "Very confident"** → user can safely advance. If they chose "default difficulty", proceed to next level.
+   - **Tests pass + "Too Hard" or "Heavy use" for concepts** → recommend an easier bridging assignment, but respect if user wants to push forward.
+   - **Tests pass + "Not really confident"** → recommend more practice, but respect user's choice.
+   - **Tests don't pass** → **user cannot proceed.** Offer regressed easier variant or more scaffolding regardless of their preference. Explain why.
+
+8. Update topic-progress.md with the self-report data, user's choice, and your notes.
 
 **For "I'm stuck" / "give me a hint"**:
 1. Read their current work (if any exists).
@@ -847,13 +910,76 @@ For each user interaction during the session:
 # Keep it concise — just the status change, detailed tracking lives in topic-progress.md
 ```
 
-4. Update `SkillPreferences.md` with any new insights about the user's learning.
+4. **Conduct self-report debrief using the `question` tool** — You CANNOT calibrate from system metrics alone (partial observability). The user may have used external resources without your knowledge. Present these as structured polls:
 
-5. Ask if they want to:
-   - **Continue to the next assignment** (same topic, next difficulty level)
-   - **Take a break** (session ends, progress saved)
-   - **Request more practice** on the current concept
-   - **Move to a new topic**
+   ```
+   question(questions=[{
+     header: "Assignment Difficulty",
+     question: "How was the difficulty for you?",
+     options: [
+       {label: "Too Easy", description: "Finished quickly without much effort"},
+       {label: "Just Right", description: "Challenging but doable — learned a lot"},
+       {label: "Too Hard", description: "Struggled significantly"},
+     ]
+   }, {
+     header: "External Resources",
+     question: "Did you use external resources? (Google, docs, Stack Overflow, AI tools)",
+     options: [
+       {label: "None needed", description: "Solved with what I know"},
+       {label: "Syntax lookups only", description: "Just checked syntax/API details"},
+       {label: "Used for concepts", description: "Looked up explanations to understand"},
+       {label: "Heavy use", description: "Couldn't have solved it without external help"},
+     ]
+   }, {
+     header: "Confidence Level",
+     question: "How confident are you applying these concepts to a new problem?",
+     options: [
+       {label: "Very confident", description: "Could explain it to someone else"},
+       {label: "Mostly confident", description: "Could figure it out with some effort"},
+       {label: "Not really", description: "Would need significant help"},
+     ]
+   }])
+   ```
+
+5. **Present path forward with the `question` tool**, including difficulty choice:
+
+   ```
+   question(questions=[{
+     header: "What's Next?",
+     question: "What would you like to do next?",
+     options: [
+       {label: "Next assignment — you decide difficulty", description: "You pick how hard the next one should be"},
+       {label: "Next assignment — default difficulty", description: "Based on how you did"},
+       {label: "More practice", description: "Similar exercises on this concept"},
+       {label: "Switch topics", description: "Move to a different topic on the roadmap"},
+       {label: "Take a break", description: "End session and save progress"},
+     ]
+   }])
+   ```
+
+   If they chose "Next assignment — you decide difficulty", follow up with:
+
+   ```
+   question(questions=[{
+     header: "Choose Difficulty",
+     question: "What difficulty should the next assignment be?",
+     options: [
+       {label: "Easier", description: "More scaffolding, guided steps"},
+       {label: "Same level", description: "Similar challenge, different scenario"},
+       {label: "Harder", description: "More complex, combine concepts"},
+       {label: "Surprise me", description: "Based on your judgment"},
+     ]
+   }])
+   ```
+
+6. **Calibrate using self-report + test results** (recommendation, not command — user's choice overrides):
+   - **Tests pass + "Just Right"/"Too Easy" + "Very confident"** → user can safely advance.
+   - **Tests pass + "Too Hard" or "Heavy use for concepts"** → recommend a bridging assignment, but respect if user pushes forward.
+   - **Tests pass + "Not really confident"** → recommend more practice, but respect user's choice.
+   - **Tests don't pass** → **user cannot proceed.** Offer regressed variant. Explain why.
+   - **User chose a difficulty** → honor it. Generate the next assignment at their chosen level.
+
+7. Update `SkillPreferences.md` with the self-report data and user's choice.
 
 ### 4.2 Generate Next Assignment (On-Demand)
 
@@ -1006,9 +1132,9 @@ task(category="unspecified-high", run_in_background=false, timeout=300000, promp
    - Skill: {skill} — DERIVE THE PROJECT NAME FROM THIS using naming rules
    - Topic: {topic}
    - Assignment number: {n}
-   - Difficulty: {current difficulty level}
+   - User-chosen difficulty: {user_chosen_difficulty} — honor this EXACTLY: Easier (more scaffolding, guided steps) / Same level (similar challenge, different scenario) / Harder (more complex, combine concepts) / Surprise me (use your best judgment based on the data)
    - Previous assignment concepts: {summary}
-   - User performance on previous assignment: {observations}
+   - User self-report data: difficulty={self_reported_difficulty}, external_help={external_help_level}, confidence={confidence_level}
    - Skill conventions (package manager, project structure, deps, testing setup): {from SkillConventions.md — MUST follow these when generating scaffold. If SkillConventions.md doesn't exist, read SkillPreferences.md}
    - Cross-skill context (other skills the user knows): {from cross-skill inventory — integrate these patterns into the scaffold if relevant}
 ")
@@ -1147,6 +1273,8 @@ If no git repo: ask if user wants to initialize one (same as /omnilearn-roadmap)
 | Assignment tests are syntactically valid | 1.4 | Quick syntax check, fix if broken |
 | topic-progress.md created when topic roadmap is made | 1.4 | Create it with proper structure |
 | topic-progress.md updated on each assignment completion | 4 | Update immediately — this is the source of truth |
+| Self-report debrief conducted (difficulty, external help, confidence) | 4 | Use `question` tool to collect structured responses. Log in SkillPreferences.md |
+| Calibration decision documented (which signals used, what was decided) | 4 | Write the reasoning in topic-progress.md |
 | Interaction diagnostic task files written for user Q&A | 3 | Write task file, not just explanation |
 | progress-index.md updated after each completion | 4, 5 | Update immediately |
 | Agent log written for session | 5 | Write before session end |
@@ -1155,30 +1283,67 @@ If no git repo: ask if user wants to initialize one (same as /omnilearn-roadmap)
 
 ## Assignment Difficulty Calibration (ZPD + Flow)
 
+> ⚠️ **Partial Observability Warning**: The system CANNOT reliably measure your understanding or effort through observation alone. You may use Google, Stack Overflow, docs, AI tools, or other resources without the agent knowing. This means automated calibration based on "time to complete" or "hints asked" is fundamentally unreliable. **Direct self-report is essential.** Always ask the user how it went — don't assume you know.
+
 ### The 85% Rule
 Each assignment should be roughly **85% familiar / 15% new**. If the user is struggling with more than ~30% of an assignment, it's outside their ZPD — provide more scaffolding or offer an easier variant.
 
 ### Difficulty Progression (NOT Fixed)
 
-| Phase | Focus | Scaffolding Level | Success Rate Target |
+| Phase | Focus | Scaffolding Level | Calibration Method |
 |-------|-------|-------------------|---------------------|
-| **Baseline** | Establish floor. One straightforward task to gauge current level. | High — detailed hints, guided steps | Should complete easily (>90%) |
-| **Stretch 1** | Core concept + one new twist. First real learning step. | Medium — key hints available | Should complete with some struggle (~80%) |
-| **Stretch 2** | Combine concepts, handle edge cases. Defensible difficulty. | Low — minimal hints, fading support | Productive struggle (~70%) |
-| **Real-World** | Full scenario, multiple concerns, best practices. Maximum stretch. | Minimal — just success criteria | Challenge zone (~60% initial, improve with iteration) |
+| **Baseline** | Establish floor. One straightforward task to gauge current level. | High — detailed hints, guided steps | User self-report + test results |
+| **Stretch 1** | Core concept + one new twist. First real learning step. | Medium — key hints available | User self-report + test results |
+| **Stretch 2** | Combine concepts, handle edge cases. Defensible difficulty. | Low — minimal hints, fading support | User self-report + test results |
+| **Real-World** | Full scenario, multiple concerns, best practices. Maximum stretch. | Minimal — just success criteria | User self-report + test results |
 
-> **If the user succeeds at Baseline too easily** → skip Stretch 1, start at Stretch 2.
-> **If the user fails at Stretch 2** → drop back, provide more scaffolding, or create an intermediate variant.
+> **If the user says it was "Too Easy"** → skip Stretch 1, start at Stretch 2 (or skip directly to Real-World).
+> **If the user says it was "Too Hard" or used heavy external help** → drop back, provide more scaffolding, or create an intermediate variant.
+> **If tests don't pass** → **do NOT proceed regardless of self-report.** The user may think they got it but the code says otherwise.
 > **The goal is never to make the user fail.** It's to keep them in flow — challenged but supported.
 
-### Dynamic Adjustment Rules
+### Calibration Protocol (Self-Report + Verification)
 
-1. **After each assignment completion**, assess: Did they need hints? How many? How long did it take?
-2. **Passed too easily** (no hints, fast) → skip one difficulty level or add a harder twist.
-3. **Passed with some hints** → perfect. Proceed to next level with similar calibration.
-4. **Failed or excessive struggle** → **do NOT push forward.** Regress: offer an easier variant with more scaffolding, or provide a bridging exercise.
-5. **After 2 consecutive failures on the same level** → the topic is too advanced. Recommend reviewing prerequisites from topic-roadmap.md before continuing.
-6. **The number of assignments per topic is NOT fixed at 3.** Add extra intermediate assignments if the user needs them. Remove levels that are too easy. The goal is learning, not completing a checklist.
+Because the system operates under **partial observability** (your learning process is partially hidden), calibration uses TWO signal sources:
+
+#### Source 1: Verification (System Data)
+- Do all tests pass? (Yes/No — this is objective)
+- Does the code look reasonable? (Agent assessment)
+- Were there obvious struggles visible in the interaction?
+
+#### Source 2: Self-Report (User Data — EQUALLY IMPORTANT)
+After each assignment completion, the agent MUST ask these questions using the `question` tool:
+
+1. **Difficulty rating**: Too Easy / Just Right / Too Hard
+2. **External resource usage**: Did you use Google, docs, Stack Overflow, or AI tools?
+   - If yes: was it for *understanding concepts* or just *syntax/details*?
+3. **Confidence level**: Very confident / Mostly confident / Not really confident
+4. **Preference**: More practice / Next challenge / Different topic
+
+#### Decision Matrix (Recommendations — User Choice Overrides)
+
+| Tests Pass? | Self-Report | Recommend | But User Can Choose |
+|-------------|-------------|-----------|-------------------|
+| ✅ Yes | Too Easy + Very confident | Skip next difficulty level | Any difficulty they want |
+| ✅ Yes | Just Right + Confident | Proceed to next level normally | Any difficulty they want |
+| ✅ Yes | Just Right + Not confident | Offer practice variant | Push to next level if they want |
+| ✅ Yes | Too Hard + Heavy external help | Bridging assignment first | Push to next level if they want (their call) |
+| ✅ Yes | Heavy external help for concepts | Practice variant or bridging | Push forward if they want |
+| ❌ No | Any | **Do NOT proceed.** Regressed variant | **No choice — tests must pass.** Explain why. |
+| Any | User selected specific difficulty | Generate at their chosen level | Honor it regardless of recommendation |
+
+#### Dynamic Adjustment Rules
+
+1. **After each assignment completion**, run the self-report debrief BEFORE deciding next steps. Use the `question` tool with selectable options.
+2. **Let the user's self-report override your assumptions.** If they say "Too Hard" even though tests passed, they may have brute-forced with external help — believe them and adjust.
+3. **Heavy external resource use for concepts ≠ learning.** If the user relied on external explanations (not just syntax lookups), recommend a bridging exercise, but respect if they want to push forward — they know their own capacity.
+4. **Tests passing is necessary but not sufficient.** Many learners can make tests pass without understanding why. Always check self-report confidence.
+5. **Failed tests always overrule everything.** Even if the user says "I got it," if tests don't pass, they haven't demonstrated it. No advancement allowed.
+6. **User choice > system recommendation.** Present your recommendation based on the data, but let the user decide. They know their own learning better than any algorithm.
+7. **Let the user choose their own difficulty.** If they want harder, make it harder. If they want easier, make it easier. Their learning, their pace.
+8. **After 2 consecutive "Too Hard" reports** → the topic may be too advanced. Check with the user: "You've found the last two assignments too hard. Would you like to review prerequisites, or keep going?"
+9. **The number of assignments per topic is NOT fixed at 3.** Add extra intermediate assignments if the user needs them. Remove levels that are too easy. The goal is learning, not completing a checklist.
+10. **Document the calibration decision.** In topic-progress.md, note: self-report data, user's choice, your recommendation, and what was actually done. This creates a traceable calibration history.
 
 ## Error Recovery
 
@@ -1188,6 +1353,12 @@ Each assignment should be roughly **85% familiar / 15% new**. If the user is str
 | User asks for a topic not in roadmap | Offer to add it (spawn roadmap-edit flow) |
 | User's code doesn't pass tests | Guide them with hints, not the answer |
 | User wants to skip to advanced | Assess readiness, warn if prerequisites missing, let them try |
+| User self-reports "Too Hard" but tests pass | Recommend bridging assignment, but respect if user wants to push forward. Their learning, their call. |
+| User self-reports "Not confident" | Recommend practice variant, but honor user's choice to advance if they prefer. |
+| User used heavy external resources for concepts | Recommend bridging exercise, but let user decide. They may feel ready despite external help. |
+| User chooses "Harder" after "Just Right" performance | Honor it. Generate a legitimately harder assignment. They know their capacity. |
+| User chooses "Easier" after passing easily | Honor it. They may want consolidation before advancing. Generate at requested difficulty. |
+| User's difficulty choice conflicts with recommendation | Present your reasoning briefly, then defer to their choice: "Your call. I'll generate it at the level you asked for." |
 | Subagent produces low-quality assignment | Fix via continuation session, ensure all 4 files exist |
 | User gets frustrated | Adjust difficulty, offer more practice exercises, change approach |
 | Test script has errors | Fix the test script immediately |
@@ -1201,6 +1372,13 @@ Each assignment should be roughly **85% familiar / 15% new**. If the user is str
 - ✅ **Follow the 85% Rule** — ~85% familiar, ~15% new. If the user struggles with >30% of the task, it's outside ZPD — provide scaffolding or regress.
 - ✅ **Scaffold then fade** — Start with strong support (detailed hints, starter code, guided steps). Remove scaffolding as competence grows.
 - ✅ **Detect frustration early** — If user says "I'm stuck" 3+ times, the task is outside ZPD. Create an easier variant or bridge exercise.
+- ✅ **Acknowledge partial observability** — You CANNOT measure their effort or external resource use. Always do a structured self-report debrief after each assignment.
+- ✅ **Calibrate using BOTH self-report AND test results** — Tests passing ≠ understanding. Self-report "Too Hard" with tests passing means they brute-forced it. Adjust accordingly.
+- ✅ **Let the user's self-report override your assumptions** — If they say "Too Hard" or "Not confident," believe them, even if tests pass.
+- ✅ **Ask before deciding next steps** — Don't assume. Use the `question` tool with selectable options.
+- ✅ **Present options, don't decide for them** — Give the user choices (next assignment / more practice / switch topics / break). Let them pick.
+- ✅ **Let users choose their difficulty** — Offer options: Easier / Same / Harder / Surprise me. Honor their choice even if it differs from your recommendation.
+- ✅ **User choice > system recommendation** — Present your assessment, but defer to user's decision. They know their learning better than any algorithm.
 - ✅ **Check roadmap exists before starting** — validate the skill is set up
 - ✅ **Read progress before each session** — know where the user left off
 - ✅ **Generate assignments on-demand** — only create what's needed now
@@ -1212,6 +1390,7 @@ Each assignment should be roughly **85% familiar / 15% new**. If the user is str
 - ✅ **Update user preferences** — when you have clear signal
 - ✅ **Provide tasks, not answers** — guide the user to discover solutions through practice
 - ✅ **Generate real-world assignments** — theory-only is not enough. Every assignment must be a real-world scenario
+- ✅ **Assignments must require genuine work** — the scaffold should provide structure and imports, but the user must write the actual logic. TODO markers with `pass` statements, not pre-filled solutions.
 - ✅ **Git commit after each session** — track progress over time
 
 ## What You MUST NOT Do
@@ -1225,6 +1404,12 @@ Each assignment should be roughly **85% familiar / 15% new**. If the user is str
 - ❌ Do NOT skip scaffold files — the user needs a starting point
 - ❌ Do NOT skip fading scaffolding — as competence grows, reduce support
 - ❌ Do NOT make all assignments the same difficulty — progression is critical. Each should be noticeably harder than the last.
+- ❌ Do NOT assume you know how the user performed — partial observability means you CAN'T see external resource use, study time, or effort. Always ask.
+- ❌ Do NOT rely on proxy metrics alone (time-to-complete, hints asked, test pass rate) — these are noisy signals that don't capture external help.
+- ❌ Do NOT advance the user based solely on tests passing — if they self-report "Too Hard" or low confidence, recommend bridging work first.
+- ❌ Do NOT force your recommendation over the user's choice — present your assessment, then defer. It's their learning journey.
+- ❌ Do NOT skip the difficulty choice step — always let the user choose their difficulty when generating the next assignment.
+- ❌ Do NOT present open-ended questions without options — use the `question` tool with selectable choices. The "Type your own answer" option handles anything they want to add.
 - ❌ Do NOT fix the number of assignments — add more if the user needs intermediate steps, remove if they're too easy
 - ❌ Do NOT let runs/ contain progress state — runs/ is for action logs only, topic-progress.md is the source of truth
 - ❌ Do NOT skip updating topic-progress.md — it's the authoritative progress record per topic
