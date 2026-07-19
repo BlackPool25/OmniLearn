@@ -55,6 +55,7 @@ const COMMANDS = [
   'omnilearn-roadmap-edit.md',
   'omnilearn-start.md',
   'omnilearn-refine.md',
+  'omnilearn-research.md',
 ];
 
 const PKG_VERSION = '1.1.0';
@@ -769,6 +770,7 @@ async function install(autoYes = false) {
     `${pc.cyan('/omnilearn-roadmap')}     ${pc.dim('— Create a learning roadmap')}`,
     `${pc.cyan('/omnilearn-start')}       ${pc.dim('— Start learning a topic')}`,
     `${pc.cyan('/omnilearn-refine')}      ${pc.dim('— Ask a deep question')}`,
+    `${pc.cyan('/omnilearn-research')}    ${pc.dim('— Deep research on any question')}`,
     '',
     `${pc.bold('Quick start:')}`,
     `  1. ${pc.cyan('opencode')}          ${pc.dim('— Open OpenCode in your terminal')}`,
