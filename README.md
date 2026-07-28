@@ -1,6 +1,11 @@
-# OmniLearn Workflow
+# OmniLearn
 
-**AI-powered adaptive learning workflows for [OpenCode](https://opencode.ai).** Uses multi-agent orchestration (Sisyphus + subagents) to create personalized learning roadmaps, generate hands-on assignments, and track progress across any skill — all directly from your terminal.
+[![npm version](https://img.shields.io/npm/v/omnilearn-workflow.svg?style=flat-square)](https://www.npmjs.com/package/omnilearn-workflow)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=flat-square)](LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/BlackPool25/OmniLearn.svg?style=flat-square)](https://github.com/BlackPool25/OmniLearn/stargazers)
+[![Node](https://img.shields.io/badge/node-%3E%3D18-brightgreen.svg?style=flat-square)](https://nodejs.org)
+
+**AI-powered adaptive learning workflows for [OpenCode](https://opencode.ai).** Multi-agent orchestration that creates personalized learning roadmaps, generates hands-on assignments with automated quality review, and tracks progress across any skill — all from your terminal.
 
 ```bash
 # One-command install
@@ -10,6 +15,88 @@ npx omnilearn-workflow
 /omnilearn-init                            # Set up your learning directory
 /omnilearn-roadmap I want to learn Rust    # Create a personalized roadmap
 /omnilearn-start Rust                      # Start learning with hands-on assignments
+```
+
+## Features
+
+| Feature | Description |
+|---------|-------------|
+| 🧠 Level-adaptive | Skips what you know, integrates your existing skills |
+| 🤖 Multi-agent orchestration | Parallel subagents research, create, and quality-review content |
+| ✅ Automated quality review | Every topic and assignment is critically reviewed before you see it |
+| 🎯 Doubt? Get a task | Micro-exercises target confusing concepts instead of more text |
+| 📊 Progress tracking | Every session logged in `topic-progress.md`, committed to git |
+| 🔄 Cross-skill integration | Python + FastAPI, algorithms + backend — skills combine naturally |
+
+## Table of Contents
+
+- [Quick Start](#quick-start)
+- [Installation](#installation)
+- [How It Works](#how-it-works)
+- [Commands](#commands)
+- [Architecture](#architecture)
+- [IDE Integration](#ide-integration)
+- [Project Structure](#project-structure)
+- [Development](#development)
+- [Contributing](#contributing)
+- [License](#license)
+
+---
+
+## Quick Start
+
+```bash
+# Install OmniLearn (one command, interactive)
+npx omnilearn-workflow
+
+# Open OpenCode
+opencode
+
+# Create your first roadmap
+/omnilearn-roadmap I want to learn Rust
+
+# Start learning
+/omnilearn-start Rust
+```
+
+---
+
+## Installation
+
+```bash
+npx omnilearn-workflow
+```
+
+The installer will:
+- Check for OpenCode (install if missing)
+- Copy 6 command files to `~/.config/opencode/command/`
+- Configure Context7 MCP for documentation lookups
+- Check for oh-my-openagent (multi-agent orchestration)
+- Optionally set up your learning directory
+
+### Prerequisites
+
+- **OpenCode** — The AI coding assistant (installer can auto-install)
+- **Oh-My-OpenAgent** — Multi-agent orchestration plugin (required for subagent workflows)
+- **Node.js >= 18** — For the npm installer
+
+### Verify Installation
+
+In OpenCode, type `/` — you should see OmniLearn commands:
+
+```
+/omnilearn-init
+/omnilearn-roadmap
+/omnilearn-roadmap-edit
+/omnilearn-start
+/omnilearn-refine
+/omnilearn-research
+```
+
+Run the health check anytime:
+
+```bash
+npx omnilearn-workflow --check
 ```
 
 ---
@@ -30,7 +117,8 @@ OmniLearn turns OpenCode into an adaptive learning tutor. Instead of reading tut
 
 - **Level-adaptive** — Skips what you already know. Checks your existing skills and integrates them.
 - **Cross-skill integration** — Already know Python? Learning FastAPI? Your roadmap uses Python throughout.
-- **Learn by doing** — Every topic has 3 hands-on assignments: Basic → Intermediate → Real-World.
+- **Learn by doing** — Every topic has hands-on assignments with real-world scenarios.
+- **Automated quality review** — Every topic roadmap, explanation, and assignment is critically reviewed by an oracle subagent with web research before you see it. BLOCKER and MAJOR issues are fixed automatically.
 - **Doubt? Get a task, not an explanation** — When stuck, you get a focused micro-exercise that isolates the confusing concept.
 - **Progress tracking** — Every assignment, session, and skill is logged in `topic-progress.md`.
 - **Self-learning preferences** — Global + per-skill preferences learned organically from your interactions.
@@ -46,9 +134,20 @@ OmniLearn turns OpenCode into an adaptive learning tutor. Instead of reading tut
     ├── progress-index.md            ← Overview index
     ├── runs/                        ← Action logs only
     └── topics/<topic>/
+        ├── topic-overview.md        ← Big picture orientation
         ├── topic-roadmap.md         ← Detailed subtopic plan
         ├── topic-progress.md        ← 🔑 Progress lives here
-        ├── assignments/             ← Hands-on tasks with tests (3 levels)
+        ├── critic-review.md         ← Auto-generated quality review (every topic)
+        ├── subtopics/<n>-<name>/
+        │   ├── subtopic-explanation.md  ← Deep theory for ONE concept
+        │   ├── critic-review.md         ← Quality review
+        │   ├── subtopic-progress.md     ← Per-subtopic tracking
+        │   └── assignments/<n>-<name>/
+        │       ├── question.md          ← Real-world scenario
+        │       ├── critic-review.md     ← Quality review
+        │       ├── test.<ext>           ← Automated test script
+        │       ├── scaffold/            ← Starter code
+        │       └── solution-guide.md    ← Reference solution
         └── runs/                    ← Session action logs
 ```
 
@@ -218,6 +317,15 @@ Get help with a specific concept or refine a topic's roadmap.
 /omnilearn-refine Python decorators Can you add more depth?
 ```
 
+### `/omnilearn-research <topic>`
+
+Deep multi-agent research on any topic. Uses parallel subagents with literature review, hypothesis testing, and structured evidence synthesis.
+
+```
+/omnilearn-research Best practices for Rust async patterns 2026
+/omnilearn-research Modern authentication methods for FastAPI
+```
+
 ---
 
 ## IDE Integration
@@ -307,6 +415,24 @@ npx omnilearn-workflow
 
 ---
 
+## Contributing
+
+1. Fork the repo and create a feature branch: `git checkout -b feature/your-feature`
+2. Make your changes to the command files in `packages/omnilearn-workflow/commands/`
+3. Test locally: copy updated commands to `~/.config/opencode/command/` and use them in OpenCode
+4. Run the test suite: `node test/test-install.mjs`
+5. Open a pull request with a clear description of your change
+
+### Development Setup
+
+```bash
+git clone git@github.com:BlackPool25/OmniLearn.git
+cd OmniLearn/packages/omnilearn-workflow
+npm install
+# Copy commands for local testing
+cp commands/*.md ~/.config/opencode/command/
+```
+
 ## License
 
-MIT
+MIT © BlackPool25

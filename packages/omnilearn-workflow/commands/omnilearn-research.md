@@ -1,10 +1,8 @@
-# /omnilearn-research Command
-
-**Description**: Multi-agent deep research system. Uses parallel subagents with systematic literature review, falsification-based hypothesis testing, and structured evidence synthesis to produce high-quality research on any topic.
-
-**Scope**: opencode
-
 ---
+description: Multi-agent deep research system. Uses parallel subagents with systematic literature review, falsification-based hypothesis testing, and structured evidence synthesis to produce high-quality research on any topic.
+---
+
+# /omnilearn-research
 
 ## Command Instructions
 

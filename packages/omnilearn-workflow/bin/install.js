@@ -18,6 +18,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
 import {
@@ -64,6 +65,56 @@ const PKG_VERSION = '1.1.0';
 // Context7 MCP — official Upstash package for documentation lookup MCP
 const CONTEXT7_MCP_SPEC = '@upstash/context7-mcp@latest';
 
+// ─── JSONC Helpers ───
+
+/**
+ * Safely parse JSON or JSONC (JSON with comments / trailing commas).
+ * Strips JS-style comments before parsing so config files with
+ * annotations don't cause silent failures.
+ */
+function parseJSONC(text) {
+  // Strip // line comments (but not URLs/http://)
+  let cleaned = text.replace(/\/\/[^"'\n]*?(?:\n|$)/g, '\n');
+  // Strip /* block comments */
+  cleaned = cleaned.replace(/\/\*[\s\S]*?\*\//g, '');
+  // Strip trailing commas before closing braces/brackets
+  cleaned = cleaned.replace(/,(\s*[}\]])/g, '$1');
+  return JSON.parse(cleaned);
+}
+
+function readOpenCodeConfigSafe() {
+  const configPath = fs.existsSync(OPENCODE_CONFIG_PATH)
+    ? OPENCODE_CONFIG_PATH
+    : fs.existsSync(OPENCODE_CONFIGC_PATH)
+      ? OPENCODE_CONFIGC_PATH
+      : null;
+  if (!configPath) return { path: null, data: null, isJSONC: false };
+  try {
+    const raw = fs.readFileSync(configPath, 'utf-8');
+    const isJSONC = configPath.endsWith('.jsonc');
+    const data = isJSONC ? parseJSONC(raw) : JSON.parse(raw);
+    return { path: configPath, data, isJSONC };
+  } catch (err) {
+    log.warn(`Could not parse OpenCode config at ${configPath}: ${err.message}`);
+    return { path: configPath, data: null, isJSONC: configPath.endsWith('.jsonc') };
+  }
+}
+
+/**
+ * Write config data back to file. If the file is .jsonc, warn about
+ * comment loss but still write (OpenCode accepts both formats).
+ */
+function writeOpenCodeConfigSafe(configPath, data, isJSONC) {
+  const output = JSON.stringify(data, null, 2) + '\n';
+  if (isJSONC) {
+    log.warn(
+      `Writing to ${path.basename(configPath)} (JSONC format) — comments in the original file will be lost. ` +
+      'This is safe; OpenCode reads both .json and .jsonc.',
+    );
+  }
+  fs.writeFileSync(configPath, output);
+}
+
 // ─── Utilities ───
 
 function printVersion() {
@@ -108,7 +159,7 @@ function printHelp() {
 function isOpenCodeInstalled() {
   if (fs.existsSync(OPENCODE_COMMAND_DIR)) return true;
   try {
-    execSync('which opencode 2>/dev/null', { stdio: 'pipe' });
+    execSync('command -v opencode 2>/dev/null', { stdio: 'pipe' });
     return true;
   } catch {
     return false;
@@ -117,30 +168,11 @@ function isOpenCodeInstalled() {
 
 function isBunAvailable() {
   try {
-    execSync('which bun 2>/dev/null', { stdio: 'pipe' });
+    execSync('command -v bun 2>/dev/null', { stdio: 'pipe' });
     return true;
   } catch {
     return false;
   }
-}
-
-function readOpenCodeConfig() {
-  const configPath = fs.existsSync(OPENCODE_CONFIG_PATH)
-    ? OPENCODE_CONFIG_PATH
-    : fs.existsSync(OPENCODE_CONFIGC_PATH)
-      ? OPENCODE_CONFIGC_PATH
-      : null;
-  if (!configPath) return { path: null, data: null };
-  try {
-    const raw = fs.readFileSync(configPath, 'utf-8');
-    return { path: configPath, data: JSON.parse(raw) };
-  } catch {
-    return { path: configPath, data: null };
-  }
-}
-
-function writeOpenCodeConfig(configPath, data) {
-  fs.writeFileSync(configPath, JSON.stringify(data, null, 2) + '\n');
 }
 
 function isContext7Configured(config) {
@@ -220,15 +252,6 @@ function readOmniLearnConfig() {
   }
 }
 
-function isBunInstalled() {
-  try {
-    execSync('which bun 2>/dev/null', { stdio: 'pipe' });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 // ─── Steps ───
 
 async function installOpenCode(autoYes) {
@@ -252,8 +275,9 @@ async function installOpenCode(autoYes) {
   s.start('Downloading OpenCode...');
   try {
     execSync('curl -fsSL https://opencode.ai/install | bash', {
-      stdio: 'pipe',
+      stdio: 'inherit',
       timeout: 120000,
+      maxBuffer: 10 * 1024 * 1024,
     });
     s.stop('OpenCode installed successfully');
     return true;
@@ -352,17 +376,16 @@ async function copyCommandFiles(forceOverwrite) {
 }
 
 async function setupContext7MCP(configInfo) {
-  const { path: configPath, data: config } = configInfo;
+  const { path: configPath, data: config, isJSONC } = configInfo;
 
   if (!configPath || !config) {
     log.warn('OpenCode config file not found — cannot auto-configure Context7 MCP.');
-    log.info('You can set it up later by running:');
-    log.info(`  ${pc.cyan('npx ctx7 setup --opencode')}`);
+    log.info('Add it manually to opencode.json under the "mcp" key:');
+    log.info(`  ${pc.dim('See: https://opencode.ai/docs/mcp-servers/#context7')}`);
     return false;
   }
 
   if (isContext7Configured(config)) {
-    // Find and show the context7 key name
     const ctxKey = Object.keys(config.mcp).find(
       (k) =>
         k.toLowerCase().includes('context7') || k.toLowerCase().includes('ctx7'),
@@ -381,52 +404,31 @@ async function setupContext7MCP(configInfo) {
     process.exit(0);
   }
   if (!shouldSetup) {
-    log.info('Skipping Context7 setup. You can configure it later by running:');
+    log.info('Skipping Context7 setup. Configure later by running:');
     log.info(`  ${pc.cyan('npx ctx7 setup --opencode')}`);
     return false;
   }
 
-  // Try the official setup command first
+  // Use remote MCP mode — no local Node.js needed, no API key required for basic usage.
+  // OpenCode docs: https://opencode.ai/docs/mcp-servers/#context7
   const s = createSpinner();
-  s.start('Running Context7 setup...');
+  s.start('Configuring Context7 MCP (remote mode)...');
   try {
-    execSync('npx ctx7 setup --opencode 2>/dev/null', {
-      stdio: 'pipe',
-      timeout: 30000,
-    });
-    s.stop('Context7 MCP configured via ctx7 CLI');
+    if (!config.mcp) config.mcp = {};
+    config.mcp.context7 = {
+      type: 'remote',
+      url: 'https://mcp.context7.com/mcp',
+      enabled: true,
+    };
+    writeOpenCodeConfigSafe(configPath, config, isJSONC);
+    s.stop('Context7 MCP configured (remote mode)');
     log.success('Context7 documentation MCP is now enabled in OpenCode');
     return true;
-  } catch {
-    // Fall back to manual config
-    s.stop('Automatic setup unavailable — configuring manually');
-  }
-
-  // Manual config: add context7 to opencode.json
-  if (!config.mcp) config.mcp = {};
-
-  config.mcp.context7 = {
-    type: 'local',
-    command: ['npx', '-y', '@upstash/context7-mcp@latest'],
-    enabled: true,
-  };
-
-  const ws = createSpinner();
-  ws.start('Writing Context7 configuration...');
-  try {
-    writeOpenCodeConfig(configPath, config);
-    ws.stop('Context7 MCP added to OpenCode configuration');
-    log.success(
-      `Added to ${pc.cyan(path.basename(configPath))} — Context7 documentation MCP is now enabled`,
-    );
-    return true;
   } catch (err) {
-    ws.stop('Failed to write config');
-    log.error(`Could not update config: ${err.message}`);
-    log.info('You can add it manually to opencode.json:');
-    log.info(
-      `  ${pc.dim('See: https://github.com/context7/context7-mcp#opencode')}`,
-    );
+    s.stop('Failed to configure Context7');
+    log.error(`Could not configure Context7: ${err.message}`);
+    log.info('Add it manually to opencode.json under the "mcp" key:');
+    log.info(`  ${pc.dim('See: https://opencode.ai/docs/mcp-servers/#context7')}`);
     return false;
   }
 }
@@ -482,8 +484,9 @@ async function ensureOhMyOpenAgent(configInfo, autoYes) {
     bs.start('Installing Bun...');
     try {
       execSync('curl -fsSL https://bun.sh/install | bash', {
-        stdio: 'pipe',
+        stdio: 'inherit',
         timeout: 60000,
+        maxBuffer: 10 * 1024 * 1024,
       });
       bs.stop('Bun installed');
     } catch (err) {
@@ -497,23 +500,32 @@ async function ensureOhMyOpenAgent(configInfo, autoYes) {
   }
 
   // Install oh-my-openagent
+  // Bun may have been freshly installed; if it's not in PATH, use the full path
+  const bunHome = path.join(os.homedir(), '.bun', 'bin');
+  const bunPath = fs.existsSync(path.join(bunHome, 'bun')) ? bunHome : null;
+  const installEnv = bunPath
+    ? { ...process.env, PATH: `${bunPath}:${process.env.PATH}` }
+    : process.env;
+
   const os = createSpinner();
   os.start('Running oh-my-openagent installer...');
   try {
-    execSync('bunx oh-my-openagent install --yes 2>/dev/null || bunx oh-my-openagent install', {
+    execSync('bunx oh-my-openagent install --no-tui --platform=opencode --skip-auth 2>/dev/null', {
       stdio: 'inherit',
       timeout: 120000,
+      maxBuffer: 10 * 1024 * 1024,
+      env: installEnv,
     });
     os.stop('oh-my-openagent installed');
 
     // Refresh config after install
-    const refreshed = readOpenCodeConfig();
+    const refreshed = readOpenCodeConfigSafe();
     if (refreshed.data && !isOhMyOpenAgentInstalled(refreshed.data)) {
       // Plugin wasn't registered by installer, add it manually
       if (!refreshed.data.plugin) refreshed.data.plugin = [];
-      if (!refreshed.data.plugin.includes('oh-my-openagent@latest')) {
-        refreshed.data.plugin.push('oh-my-openagent@latest');
-        writeOpenCodeConfig(refreshed.path, refreshed.data);
+      if (!refreshed.data.plugin.includes('oh-my-openagent')) {
+        refreshed.data.plugin.push('oh-my-openagent');
+        writeOpenCodeConfigSafe(refreshed.path, refreshed.data, refreshed.isJSONC);
       }
     }
     log.success('oh-my-openagent is now installed and configured');
@@ -587,7 +599,7 @@ async function configureLearningDir() {
 async function runHealthCheck() {
   intro(pc.inverse(' OmniLearn Health Check '));
 
-  const configInfo = readOpenCodeConfig();
+  const configInfo = readOpenCodeConfigSafe();
   const checks = [];
 
   // 1. OpenCode
@@ -737,12 +749,12 @@ async function install(autoYes = false) {
 
   // ── Step 2: Context7 MCP ──
   log.step('2/5  Configuring Context7 MCP (documentation lookups)');
-  const configInfo = readOpenCodeConfig();
+  const configInfo = readOpenCodeConfigSafe();
   await setupContext7MCP(configInfo);
 
   // ── Step 3: oh-my-openagent ──
   log.step('3/5  Checking oh-my-openagent (multi-agent orchestration)');
-  const refreshedConfig = readOpenCodeConfig();
+  const refreshedConfig = readOpenCodeConfigSafe();
   await ensureOhMyOpenAgent(refreshedConfig, autoYes);
 
   // ── Step 4: Copy command files ──

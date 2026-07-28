@@ -1,30 +1,26 @@
 # OmniLearn Workflow
 
-**AI-powered adaptive learning workflows for [OpenCode](https://opencode.ai).** Uses multi-agent orchestration to create personalized learning roadmaps, generate hands-on assignments, and track progress across any skill.
+[![npm version](https://img.shields.io/npm/v/omnilearn-workflow.svg?style=flat-square)](https://www.npmjs.com/package/omnilearn-workflow)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=flat-square)](LICENSE)
+[![GitHub](https://img.shields.io/badge/GitHub-BlackPool25%2FOmniLearn-blue.svg?style=flat-square)](https://github.com/BlackPool25/OmniLearn)
+[![Node](https://img.shields.io/badge/node-%3E%3D18-brightgreen.svg?style=flat-square)](https://nodejs.org)
 
-**GitHub:** https://github.com/BlackPool25/OmniLearn
+**AI-powered adaptive learning workflows for [OpenCode](https://opencode.ai).** Multi-agent orchestration that creates personalized learning roadmaps, generates hands-on assignments with automated quality review, and tracks progress across any skill.
+
+> This is the npm installer package. Full documentation: [github.com/BlackPool25/OmniLearn](https://github.com/BlackPool25/OmniLearn)
 
 ## Quick Start
 
 ```bash
-# Run the installer — it will set up everything interactively
+# One-command install (interactive)
 npx omnilearn-workflow
 
-# The installer will:
-#   ✓ Check for OpenCode (and install it if missing)
-#   ✓ Install all /omnilearn-* commands
-#   ✓ Configure your learning directory
-#   ✓ Detect optional dependencies
+# Auto-install with defaults:
+npx omnilearn-workflow --yes
 
-# Then open OpenCode and create your first roadmap:
+# Then open OpenCode and start learning:
 opencode
 /omnilearn-roadmap I want to learn Rust
-```
-
-## One-liner (auto-install with defaults)
-
-```bash
-npx omnilearn-workflow --yes
 ```
 
 ## Available Commands
@@ -36,53 +32,24 @@ npx omnilearn-workflow --yes
 | `/omnilearn-roadmap-edit` | Edit an existing roadmap without losing progress |
 | `/omnilearn-start` | Interactive learning: hands-on assignments, Q&A, progress tracking |
 | `/omnilearn-refine` | Deep-dive questions and subtopic refinements |
+| `/omnilearn-research` | Multi-agent deep research on any topic |
 
 ## How It Works
 
 OmniLearn uses **multi-agent orchestration** (Sisyphus → subagents) to:
 
-1. **Research** — Parallel subagents use web search + Context7 to find everything needed for real-world proficiency
-2. **Adapt** — Scans your existing skills, reads your preferences, and skips what you already know
-3. **Integrate** — Combines skills you already have with new ones (e.g., Python + FastAPI = full-stack ML API)
-4. **Generate** — Creates hands-on assignments at 3 difficulty levels: Basic → Intermediate → Real-World
-5. **Track** — Every assignment completion and session is logged in `topic-progress.md`
-
-## Architecture
-
-```
-.omnilearn/                          ← In your configured learning directory
-├── UserPreferences.md               ← Global preferences (auto-learned)
-└── <skill>/
-    ├── roadmap.md                   ← Master roadmap
-    ├── SkillPreferences.md          ← Per-skill preferences
-    ├── progress-index.md            ← Overview index
-    ├── runs/                        ← Action logs only
-    └── topics/<topic>/
-        ├── topic-roadmap.md         ← Detailed subtopic plan
-        ├── topic-progress.md        ← 🔑 Progress lives here
-        ├── assignments/             ← Hands-on tasks with tests
-        └── runs/                    ← Session action logs
-```
+1. **Research** — Parallel subagents use web search + Context7 to research everything needed
+2. **Adapt** — Scans your existing skills and preferences, skips what you already know
+3. **Integrate** — Combines skills you already have with new ones
+4. **Generate** — Creates hands-on assignments with real-world scenarios
+5. **Review** — Every topic and assignment is critically reviewed by an oracle subagent before you see it
+6. **Track** — Every session is logged in `topic-progress.md` and committed to git
 
 ## Requirements
 
-- [OpenCode](https://opencode.ai) (installer can auto-install this for you)
-- [Oh-My-OpenAgent](https://github.com/code-yeongyu/oh-my-openagent) (recommended)
-- Node.js >= 18
-
-## Configuration
-
-OmniLearn stores its config at `~/.config/opencode/omnilearn.json`:
-
-```json
-{
-  "learningDirectory": "/absolute/path/to/learning",
-  "setupDate": "2026-07-04",
-  "version": "1"
-}
-```
-
-The installer can configure this for you during setup, or you can run `/omnilearn-init` in OpenCode.
+- **OpenCode** — AI coding assistant (installer can auto-install)
+- **Oh-My-OpenAgent** — Multi-agent orchestration plugin (required)
+- **Node.js >= 18**
 
 ## CLI Flags
 
