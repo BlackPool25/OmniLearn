@@ -67,10 +67,18 @@ The goal metric: **Can the user apply what they learned to real-world problems t
         ├── subtopics/                      ← NEW: each subtopic is a focused, self-contained unit
         │   ├── 01-<subtopic-name>/          ← e.g., "01-python-version-management"
         │   │   ├── subtopic-explanation.md ← ← 🔑 DEEP explanation for ONE subtopic (all 3 layers, no cramming)
+<<<<<<< HEAD
+=======
+        │   │   ├── critic-review.md        ← Quality review by oracle agent (auto-generated after creation)
+>>>>>>> 490a529 (temp: local state)
         │   │   ├── subtopic-progress.md    ← Progress for this single subtopic
         │   │   ├── assignments/
         │   │   │   ├── 01-<concept>/
         │   │   │   │   ├── question.md     ← Real-world scenario assignment brief
+<<<<<<< HEAD
+=======
+        │   │   │   │   ├── critic-review.md← Quality review (auto-generated after creation)
+>>>>>>> 490a529 (temp: local state)
         │   │   │   │   ├── test.<ext>      ← Automated test script
         │   │   │   │   ├── scaffold/       ← Starter code
         │   │   │   │   └── solution-guide.md
@@ -120,6 +128,142 @@ All subagents that use MCP tools MUST follow these exact calling conventions:
 - Do NOT nest tool calls unless the API explicitly requires it.
 - If a tool call fails, verify parameter names match before retrying.
 
+<<<<<<< HEAD
+=======
+## Subagent Delegation Rule: Delegate → Continue → Wait → Act (ALL Subagents)
+
+This rule applies to EVERY subagent delegation — research, critic review, content creation, anything:
+
+1. **Delegate in background**: Always use `run_in_background=true` unless the task takes <5 seconds and the main agent has literally nothing else to do
+2. **Continue non-overlapping work**: While subagents run, the main agent does work that doesn't depend on their results (reading files, planning next steps, updating progress, preparing context)
+3. **Wait before acting**: Do NOT make any changes that depend on a subagent's results until ALL relevant subagents have reported. Collect via `background_output(task_id="bg_...")` after the system's `<system-reminder>` notification
+4. **Only then act**: With all results collected, make decisions and implement changes
+
+This maximizes parallelism without sacrificing quality. The main agent is the orchestrator — it keeps working while subagents research, then synthesizes when they're done.
+
+## The Critic Review Process (MANDATORY AFTER EVERY CONTENT CREATION)
+
+**After every topic-roadmap, subtopic-explanation, or assignment creation**, you MUST run a critic review before presenting the result to the user or proceeding to the next step. This is NOT optional — it is the quality gate that prevents low-effort, inaccurate, or pedagogically weak content from reaching the user.
+
+### How the Critic Works
+
+```
+Content Created → Spawn Critic(s) in background → Continue independent work → ALL critics done → Fix Issues → Present
+```
+
+**The critic runs in the background (`run_in_background=true`) but the main agent MUST wait for all results before making ANY changes.** Workflow:
+
+1. Spawn all critic subagents with `run_in_background=true` — they search and evaluate independently
+2. While critics run, the main agent may continue **non-overlapping work** (e.g., updating progress files, preparing the next step's context)
+3. **CRITICAL: Do NOT make any changes to the content under review until ALL critics have returned their results.** Collect outputs via `background_output(task_id="bg_...")` after receiving the completion notification
+4. Once all critics are done, read the `critic-review.md` files and fix issues
+
+The critic is an `oracle` subagent that:
+1. Reads the newly created content
+2. Searches the web (google_search, websearch) for current best practices, common pitfalls, and real-world standards
+3. Evaluates the content against: accuracy, pedagogical quality, production relevance, and skill-specific conventions
+4. Produces a structured `critic-review.md` in the content's directory
+5. The MAIN AGENT then fixes all issues the critic identified
+
+### The Critic Subagent Template (Use This Every Time)
+
+Insert this IMMEDIATELY after ANY content creation subagent completes (topic roadmap, subtopic explanation, assignment, etc.):
+
+```typescript
+// Background — run in parallel with other work, but main agent MUST wait for result before making any changes
+task(subagent_type="oracle", run_in_background=true, timeout=120000, prompt="
+CRITIC REVIEW: Review the recently created content for '{content_type}' in skill '{skill}', topic '{topic}'.
+
+**CURRENT DATE: {CURRENT_DATE}** — Use ONLY current information. Flag anything that references deprecated libraries, outdated patterns, or superseded best practices.
+
+1. Read these files to understand the content:
+   - {CONTENT_DIR}/  [the directory containing the created content]
+
+2. Conduct web research using google_search / websearch for EACH of these angles:
+   - Current industry best practices for THIS specific concept
+   - Common misconceptions and mistakes that beginners make
+   - Whether the examples/patterns used are up-to-date and idiomatic
+   - If the difficulty calibration matches real-world expectations
+   - Search for 3-5 different sources to triangulate quality signals
+
+3. Evaluate the content against these criteria (be specific with evidence):
+   a) ACCURACY: Is every technical statement correct? Are there errors, oversimplifications, or misleading claims?
+   b) PEDAGOGY: Does the explanation follow the one-concept-per-subtopic rule? Are the layers progressive? Is the ZPD appropriate?
+   c) PRODUCTION RELEVANCE: Does the assignment/test/scaffold reflect real-world practice? Or is it academic/artificial?
+   d) CONVENTIONS: Does the code/scaffold follow the skill's SkillConventions.md? (e.g. src/ layout, uv for Python, proper naming)
+   e) COMPLETENESS: Are all required sections present? (question.md, test, scaffold, solution-guide, etc.)
+   f) PREREQUISITES: Does the content assume knowledge the user hasn't learned yet?
+
+4. For each issue found:
+   - State the EXACT file and line/area
+   - Explain WHY it's a problem (with web source if applicable)
+   - Give a CONCRETE suggestion for how to fix it
+   - Rate severity: BLOCKER / MAJOR / MINOR / INFO
+
+5. If the content is a subtopic-explanation.md, also evaluate:
+   - Is it ONE concept or multiple? (MUST be one)
+   - Is the 'One Level Down' rule followed?
+   - Are misconceptions proactively addressed?
+
+6. If the content is an assignment/test, also evaluate:
+   - Can the assignment be solved with the concepts taught so far?
+   - Are the test scripts syntactically valid and runnable?
+   - Do the tests test the right things? (the subtopic's learning objectives)
+   - Is the scaffold genuinely useful (provides structure, not the solution)?
+
+7. Save your review to: {CONTENT_DIR}/critic-review.md
+   Format:
+   # Critic Review: {content_type}
+   
+   ## Summary
+   - Overall verdict: ✅ Pass / ⚠️ Pass with issues / ❌ Needs fixes
+   - Blocker count: {n} | Major: {n} | Minor: {n} | Info: {n}
+   
+   ## Issues Found
+   ### {severity}: {short description}
+   - **Location**: {file}:{line/area}
+   - **Problem**: {detailed explanation}
+   - **Evidence**: {web research finding}
+   - **Suggestion**: {concrete fix}
+   
+   ## What's Good
+   - {aspect that works well}
+   
+   ## Research Notes
+   - {key finding from web research}
+
+8. DO NOT:
+   - Do NOT rubber-stamp content as good without checking it
+   - Do NOT ignore minor issues — accumulation of minor issues is a quality problem
+   - Do NOT make assumptions about current best practices — always verify with web search
+   - Do NOT skip the web research phase
+
+9. CONTEXT:
+   - Skill: {skill} 
+   - Topic: {topic}
+   - Content type: {content_type} (e.g. 'topic-roadmap', 'subtopic-1-explanation', 'assignment-01')
+   - Content directory: {CONTENT_DIR}/
+   - User skill level: {from preferences}
+")
+```
+
+### Collecting Results Before Making Changes
+
+1. **Wait for ALL critics to finish** before making any changes to content under review. The system sends `<system-reminder>` when background tasks complete.
+2. Collect each critic's output via `background_output(task_id="bg_...")`.
+3. Only after ALL critics have reported, proceed to fixing.
+
+After collecting all critic results:
+1. Read each `{CONTENT_DIR}/critic-review.md` file.
+2. For every BLOCKER and MAJOR issue: fix the content immediately.
+3. For MINOR issues: fix unless the fix would cause more harm than good.
+4. For INFO items: consider implementing if they clearly improve quality.
+5. If the verdict is ❌ Needs fixes: after fixing, run the critic again on the fixed content.
+6. Only after all BLOCKERS and MAJORs are resolved, proceed.
+
+If the critic returns a verdict of ✅ Pass or ⚠️ Pass with issues where all BLOCKER/MAJOR issues are fixed, the MAIN AGENT saves the critic-review.md alongside the content and proceeds.
+
+>>>>>>> 490a529 (temp: local state)
 ## MANDATORY TOOLS
 
 | Tool | When | Why |
@@ -128,6 +272,10 @@ All subagents that use MCP tools MUST follow these exact calling conventions:
 | `task(category="deep", background)` | Complex autonomous | Full topic roadmap creation (sub-agents within) |
 | `task(category="writing")` | Content writing | Topic explanations, solution guides |
 | `task(category="unspecified-high", ["programming"])` | Technical work | Test scripts, scaffold code |
+<<<<<<< HEAD
+=======
+| `task(subagent_type="oracle")` | **Critic review after EVERY content creation** | Quality assurance — accuracy, pedagogy, production relevance |
+>>>>>>> 490a529 (temp: local state)
 | `google_search` / `websearch_web_search_exa` | Research | Learning resources, topic best practices |
 | `context7_query-docs` | Tech skills | Official docs for languages/frameworks |
 | `question` tool | User interaction | Present topic choices, ask for preferences |
@@ -532,6 +680,17 @@ After completion, verify:
 
 If anything is missing, fix via session continuation: `task(task_id="<session_id>", prompt="Fix: {missing element}")"
 
+<<<<<<< HEAD
+=======
+**CRITIC REVIEW — MANDATORY**: After verification, run the Critic Review process (defined above) on:
+- `{TOPICS_DIR}/{topic}/topic-roadmap.md` — content_type="topic-roadmap"
+- `{TOPICS_DIR}/{topic}/topic-overview.md` — content_type="topic-overview"
+- `{TOPICS_DIR}/{topic}/subtopics/01-{name}/subtopic-explanation.md` — content_type="subtopic-1-explanation"
+- `{TOPICS_DIR}/{topic}/subtopics/01-{name}/assignments/01-{concept}/` — content_type="assignment-01"
+
+Run ONE critic for each (or batch them if the content is small). Fix all BLOCKER and MAJOR issues before proceeding. The critic-review.md files are saved alongside the content for the user to reference.
+
+>>>>>>> 490a529 (temp: local state)
 ## Phase 1.5: READINESS GATE — Orient Then Dive Deep
 
 **The user MUST read the theory before touching assignments.** This is non-negotiable.
@@ -982,6 +1141,11 @@ task(category="unspecified-high", run_in_background=false, timeout=300000, promp
    - Previous assignment concepts: {summary}
    - User self-report: difficulty={self_reported}, external_help={help_level}, confidence={confidence}
 ")
+<<<<<<< HEAD
+=======
+
+**CRITIC REVIEW — MANDATORY**: After the assignment is created, run the Critic Review process on the new assignment directory `{SUDTOPIC_DIR}/assignments/0{n}-{concept-name}/`. Fix all BLOCKER and MAJOR issues before presenting to the user.
+>>>>>>> 490a529 (temp: local state)
 ```
 
 ---
@@ -1045,6 +1209,15 @@ task(category="deep", run_in_background=false, timeout=600000, prompt="
 ")
 ```
 
+<<<<<<< HEAD
+=======
+**CRITIC REVIEW — MANDATORY**: After creating the next subtopic, run the Critic Review process on:
+- `{TOPICS_DIR}/{topic}/subtopics/{next-subtopic-num}-{name}/subtopic-explanation.md` — content_type="subtopic-explanation"
+- `{TOPICS_DIR}/{topic}/subtopics/{next-subtopic-num}-{name}/assignments/01-{concept}/` — content_type="assignment-01"
+
+Fix all BLOCKER and MAJOR issues before presenting to the user (Phase 1.5 Step 2-3).
+
+>>>>>>> 490a529 (temp: local state)
 After creating the next subtopic, present it to the user (same pattern as Phase 1.5 Step 2-3).
 
 ### 4.3 When All Assignments Are Complete
@@ -1058,7 +1231,13 @@ When ALL subtopics for a topic are completed (all subtopics in the topic-roadmap
    - Save to: {TOPICS_DIR}/{topic}/assignments/01-{integration-name}/
    - This is the capstone — the user demonstrates they can use everything together
 
+<<<<<<< HEAD
 2. **Update `topic-progress.md`** — set overall status to ✅ Completed, finalize all subtopic statuses.
+=======
+2. **Run Critic Review — MANDATORY** on the integration assignment directory `{TOPICS_DIR}/{topic}/assignments/01-{integration-name}/`. Fix all BLOCKER and MAJOR issues.
+
+3. **Update `topic-progress.md`** — set overall status to ✅ Completed, finalize all subtopic statuses.
+>>>>>>> 490a529 (temp: local state)
 
 3. **Update `progress-index.md`** — mark topic as ✅ Completed (this is the overview index).
 
@@ -1192,6 +1371,13 @@ If no git repo: ask if user wants to initialize one (same as /omnilearn-roadmap)
 | subtopic-explanation.md covers ONE subtopic only (no concept cramming) | 1.4 | If multiple concepts are present, split into separate subtopics |
 | Assignment 1 exists (question, test, scaffold, solution) | 1.4 | Fix incomplete assignment |
 | Assignment tests are syntactically valid | 1.4 | Quick syntax check, fix if broken |
+<<<<<<< HEAD
+=======
+| Critic review run on topic-roadmap, overview, subtopic-explanation, and assignment | 1.4 | Run oracle critic on each. Fix BLOCKER/MAJOR. Save critic-review.md |
+| Critic review run on new assignment | 4.2 (Scenario A) | Run oracle critic on assignment. Fix BLOCKER/MAJOR |
+| Critic review run on new subtopic and its assignment | 4.2 (Scenario B) | Run oracle critic on explanation + assignment. Fix BLOCKER/MAJOR |
+| Critic review run on cross-subtopic integration | 4.3 | Run oracle critic on integration assignment. Fix BLOCKER/MAJOR |
+>>>>>>> 490a529 (temp: local state)
 | subtopic-progress.md created for each subtopic | 1.4 | Create with per-subtopic tracking |
 | topic-progress.md tracks at subtopic level (not just topic) | 1.4 | Add subtopic rows with status and links |
 | topic-progress.md updated on each assignment completion | 4 | Update immediately — update both subtopic-progress.md and topic-progress.md |
@@ -1284,7 +1470,13 @@ After each assignment completion, the agent MUST ask these questions using the `
 | User chooses "Easier" after passing easily | Honor it. They may want consolidation before advancing. Generate at requested difficulty within same subtopic. |
 | User's difficulty choice conflicts with recommendation | Present your reasoning briefly, then defer to their choice: "Your call. I'll generate it at the level you asked for." |
 | User wants to revisit a previous subtopic | Allow it. Read that subtopic's explanation, offer a practice assignment. Don't force a linear path. |
+<<<<<<< HEAD
 | Subagent produces low-quality assignment | Fix via continuation session, ensure all files exist |
+=======
+| Subagent produces low-quality assignment | Run critic review, fix BLOCKER/MAJOR issues, then re-run critic if verdict was ❌ |
+| Critic review returns ❌ Needs fixes | Fix all BLOCKER and MAJOR issues, then re-run critic on the same content. Repeat until verdict is ✅ or ⚠️ with only MINOR/INFO items remaining |
+| Critic review finds content covers multiple concepts | Split the subtopic into separate subtopics, run critic on each |
+>>>>>>> 490a529 (temp: local state)
 | Subtopic-explanation covers multiple concepts | Split into separate subtopics. File a continuation session to fix. |
 | User gets frustrated | Adjust difficulty, offer easier variant within current subtopic, or suggest taking a break. |
 | Session interrupted | Next session reads topic-progress.md — picks up at the current subtopic. |
@@ -1317,6 +1509,12 @@ After each assignment completion, the agent MUST ask these questions using the `
 - ✅ **Log all interactions in runs/** — create interaction task files for Q&A, agent-log.md for session actions
 - ✅ **Update user preferences** — when you have clear signal
 - ✅ **Provide tasks, not answers** — guide the user to discover solutions through practice
+<<<<<<< HEAD
+=======
+- ✅ **Run critic review in background after EVERY content creation** — use `run_in_background=true` so critics can run in parallel. Continue non-overlapping work while waiting
+- ✅ **Wait for ALL critics before making changes** — collect results via `background_output(task_id="bg_...")` after the system notifies completion. Do NOT edit content under review until all critics have reported
+- ✅ **Fix BLOCKER and MAJOR issues from critic** — do NOT proceed until all blockers are resolved. The critic-review.md file documents the quality assessment
+>>>>>>> 490a529 (temp: local state)
 - ✅ **Generate real-world assignments** — theory-only is not enough. Every assignment must be a real-world scenario
 - ✅ **Assignments must require genuine work** — the scaffold should provide structure and imports, but the user must write the actual logic. TODO markers with `pass` statements, not pre-filled solutions.
 - ✅ **Git commit after each session** — track progress over time
@@ -1332,6 +1530,12 @@ After each assignment completion, the agent MUST ask these questions using the `
 - ❌ Do NOT keep the same difficulty after failure — if tests fail, offer an easier variant
 - ❌ Do NOT write explanations when user has a doubt — generate a diagnostic task instead
 - ❌ Do NOT give away solutions when the user is stuck — give them tasks that lead to the answer
+<<<<<<< HEAD
+=======
+- ❌ Do NOT skip the critic review — every content creation (topic roadmap, subtopic explanation, assignment) MUST get a critic-review.md. Without it, the content is unverified
+- ❌ Do NOT edit content under review before all critics have reported — collect all background_output first, then fix. Making changes before getting critic feedback defeats the purpose
+- ❌ Do NOT proceed with BLOCKER issues unfixed — the critic identified them for a reason; fix them before the user sees the content
+>>>>>>> 490a529 (temp: local state)
 - ❌ Do NOT skip scaffold files — the user needs a starting point
 - ❌ Do NOT skip fading scaffolding — as competence grows, reduce support
 - ❌ Do NOT make all assignments the same difficulty — progression is critical. Each should be noticeably harder than the last.
