@@ -134,7 +134,7 @@ function printHelp() {
       '',
       `${pc.bold('What this does:')}`,
       `  1. Checks OpenCode is installed (offers to install if missing)`,
-      `  2. Copies 5 command files to ~/.config/opencode/command/`,
+      `  2. Copies 6 command files to ~/.config/opencode/command/`,
       `  3. Makes them available as ${pc.cyan('/omnilearn-*')} commands in OpenCode`,
       `  4. Configures Context7 MCP for documentation lookups`,
       `  5. Checks for oh-my-openagent (multi-agent orchestration)`,
