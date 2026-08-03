@@ -56,6 +56,24 @@ This command performs the same rigorous research-backed process as `/omnilearn-r
 
 **Critical rule: the edit restructures FUTURE topics intelligently while leaving COMPLETED and IN-PROGRESS topics untouched. Never delete or reset progress — only reorder, add, or deepen future content.**
 
+## TEAM ORCHESTRATION (use for ALL parallel research phases)
+
+**When a phase has 2+ independent research/analysis agents, run them as a TEAM, not as individual `task()` calls.** One `team_create` per parallel phase; members are category-routed workers that write findings to markdown files and report to you.
+
+1. **Create the team** with an inline spec (teams are ephemeral):
+   ```json
+   {"name": "<skill>-roadmap-edit-research", "members": [
+     {"name": "<member-1>", "category": "unspecified-high", "prompt": "<full self-contained prompt: read context → research/analyze → write deliverable file → report to lead via team_send_message>"},
+     {"name": "<member-2>", "category": "unspecified-high", "prompt": "..."}
+   ]}
+   ```
+   Member prompts MUST be fully self-contained. Max 8 members, max 4 parallel workers.
+2. **Register tracking tasks**: `team_task_create` one task per member deliverable, then `team_send_message` to each member telling them to claim their task (`team_task_update` → `in_progress`), execute, mark `completed`, report a short summary.
+3. **Wait for completion** — check `team_task_list` until every task is terminal. Members run in parallel; do NOT poll.
+4. **Closure Contract (MANDATORY, same turn)**: once every task is `completed`/`failed`, shut down each active member (`team_shutdown_request` → `team_approve_shutdown`) and `team_delete`. If delete says "members still active", re-run `team_status` once, then retry.
+5. **Fallback**: if `team_*` tools are unavailable, fall back to `task(category="unspecified-high", run_in_background=true)` with the same member prompts.
+6. **Do NOT use teams for serial single-deliverable steps** (roadmap update, file edits by the orchestrator) — individual delegates or direct work are correct there.
+
 ## Directory Structure Reference
 
 ```
@@ -210,14 +228,18 @@ cp "$ROADMAP" "$ARCHIVE_DIR/old-roadmap-archived.md"
 
 This ensures the old version is NEVER lost.
 
-## Phase 1: PARALLEL RESEARCH — Analyze + Research Changes
+## Phase 1: PARALLEL RESEARCH — Research Team
 
-Spawn two subagents in parallel:
+Run the two research angles as a **team** (see TEAM ORCHESTRATION above). Each member writes to a file and reports to you.
 
-### 1.1 Subagent A: Changes Analysis (Progress-Aware)
+### 1.1 Create the research team
 
 ```typescript
-task(category="unspecified-high", run_in_background=true, prompt="
+team_create({ inline_spec: {
+  name: "<skill>-roadmap-edit-research",
+  members: [
+    // MEMBER A: Changes Analysis (Progress-Aware)
+    { name: "changes-analyst", category: "unspecified-high", prompt: `
 1. TASK: Analyze the existing {skill} roadmap and the user's requested changes to determine exactly what needs to be added, removed, or restructured. **CRITICAL: You MUST read the progress inventory first to know what the user has already accomplished.**
 2. EXPECTED OUTCOME: A detailed analysis identifying specific roadmap changes, with rationale and a **progress migration plan** ensuring nothing the user has done is lost.
 
@@ -256,13 +278,10 @@ task(category="unspecified-high", run_in_background=true, prompt="
    - Progress inventory at: {ARCHIVE_DIR}/progress-inventory.md
    - Existing roadmap at: {ROADMAP}
    - User preferences: {summary}
-")
-```
-
-### 1.2 Subagent B: Online Research for Changes
-
-```typescript
-task(category="unspecified-high", run_in_background=true, prompt="
+   - Claim your team task (team_task_update → in_progress, owner changes-analyst) when you start, mark it completed when the file is written, then report a 5-10 line summary to the lead via team_send_message.
+`},
+    // MEMBER B: Online Research for Changes
+    { name: "online-researcher", category: "unspecified-high", prompt: `
 1. TASK: Research online to validate and inform the user's requested roadmap changes for {skill}.
 2. EXPECTED OUTCOME: A research document with web-sourced findings about the topics the user wants to add/modify.
 
@@ -298,12 +317,24 @@ task(category="unspecified-high", run_in_background=true, prompt="
    - Skill: {skill}
    - User change request: {user_change_request}
    - User preferences: {summary}
-")
+   - Claim your team task (team_task_update → in_progress, owner online-researcher) when you start, mark it completed when the file is written, then report a 5-10 line summary to the lead via team_send_message.
+`}
+  ]
+}})
+```
+
+### 1.2 Register tasks and dispatch
+
+```typescript
+team_task_create(teamRunId, subject: "Changes analysis (progress-aware)", description: "Deliverable: {ARCHIVE_DIR}/research-changes.md")
+team_task_create(teamRunId, subject: "Online research for changes", description: "Deliverable: {ARCHIVE_DIR}/research-online.md")
+team_send_message(teamRunId, to: "changes-analyst", body: "Task #1 registered — claim via team_task_update (in_progress), execute, write research-changes.md, mark completed, report.")
+team_send_message(teamRunId, to: "online-researcher", body: "Task #2 registered — claim via team_task_update (in_progress), execute, write research-online.md, mark completed, report.")
 ```
 
 ### 1.3 Collect Both Results
 
-Wait for both to complete. Collect via `background_output()`.
+Wait for members to report and verify via `team_task_list` that both tasks are `completed`. Then apply the **Closure Contract** (shutdown + delete the team) before Phase 2.
 
 ## Phase 2: ROADMAP UPDATE — Synthesize New Version
 
@@ -312,6 +343,8 @@ Wait for both to complete. Collect via `background_output()`.
 Read the research files and the archived old roadmap.
 
 ### 2.2 Spawn Roadmap Update Subagent (Progress-Preserving)
+
+**This step stays a single `task()` delegate (NOT a team)** — one serial deliverable, no parallelism.
 
 ```typescript
 task(category="unspecified-high", run_in_background=false, timeout=300000, prompt="
@@ -490,8 +523,10 @@ If no git repo: same flow as `/omnilearn-roadmap` — ask if the user wants to i
 |-------|-------|-----------------|
 | Old roadmap archived before editing | 0 | Block — archive first |
 | Progress inventory built (topic-progress.md read for ALL topics) | 0 | Block — must know what user has done |
-| Change analysis subagent reads progress inventory | 1 | Re-spawn with progress inventory path |
-| Online research subagent completed | 1 | Block — must have validation |
+| Research team created with both members | 1 | Re-create team; fall back to background subagents only if team tools unavailable |
+| Changes analysis member read progress inventory (file exists) | 1 | Re-dispatch member with progress inventory path |
+| Online research member completed (file exists) | 1 | Block — must have validation |
+| All team tasks terminal + team deleted (Closure Contract) | 1 | Complete shutdown/delete before Phase 2 |
 | All ✅ Completed topics preserved in new roadmap unchanged | 2 | Restore from archive, re-synthesize |
 | All 🔵 In Progress topics preserved with same status | 2 | Restore markers from archive |
 | All 🟢 Not Started topics accounted for (restructured or moved) | 2 | Check each was mapped |
@@ -507,6 +542,9 @@ If no git repo: same flow as `/omnilearn-roadmap` — ask if the user wants to i
 | Situation | Action |
 |-----------|--------|
 | Skill/roadmap doesn't exist | Tell user to use /omnilearn-roadmap first |
+| Research team member fails | Re-run via `team_send_message` to that member (same team session) with more specific instructions |
+| Team member's deliverable file missing | Re-dispatch same member; if team closed, re-create 1-member team or use single task() delegate |
+| Team tools unavailable | Fall back to `task(category="unspecified-high", run_in_background=true)` with same member prompts |
 | User wants to revert changes | Restore old-roadmap-archived.md from runs/, revert any topic directory moves |
 | User says "you deleted my progress!" | STOP. Restore from archive. The topics/ directory must be fully intact with git checkout. |
 | Change analysis conflicts with online research | Present both perspectives, ask user which to follow |
@@ -520,6 +558,8 @@ If no git repo: same flow as `/omnilearn-roadmap` — ask if the user wants to i
 
 - ✅ **Build a complete progress inventory BEFORE any changes** — read every topic-progress.md
 - ✅ **Archive old roadmap before any changes** — never overwrite without backup
+- ✅ **Delegate parallel research to a TEAM** — changes analysis + online research run as team members (see TEAM ORCHESTRATION)
+- ✅ **Apply the Closure Contract** — shut down members and delete the team as soon as all research tasks are terminal
 - ✅ **Preserve ALL topic-progress.md, assignments/, and runs/ files** — they are the user's learning record
 - ✅ **Treat ✅ Completed topics as immutable** — never delete, never reset, never reorder away from their section
 - ✅ **Treat 🔵 In Progress topics as sacred** — the user is mid-learning, don't disrupt them
@@ -539,6 +579,8 @@ If no git repo: same flow as `/omnilearn-roadmap` — ask if the user wants to i
 - ❌ Do NOT treat completed and not-started topics the same — they are fundamentally different
 - ❌ Do NOT skip building the progress inventory — this is what prevents data loss
 - ❌ Do NOT skip online research — even for topics you 'know'
+- ❌ Do NOT leave teams running after research completes — teams are ephemeral; close them (Closure Contract)
+- ❌ Do NOT use a team for serial single-deliverable steps (roadmap update) — individual `task()` delegates are correct there
 - ❌ Do NOT assume you know what the user has done — read topic-progress.md files to verify
 - ❌ Do NOT proceed if change request is too vague — ask for clarification
 - ❌ Do NOT push to remote without explicit user approval

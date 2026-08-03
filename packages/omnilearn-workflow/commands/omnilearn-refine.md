@@ -86,10 +86,25 @@ All subagents that use MCP tools MUST follow these exact calling conventions:
 
 | Tool | When | Why |
 |------|------|-----|
+| `team_create({ inline_spec })` | REFINE flow — parallel research (analysis + online research) | Run the two independent research angles as team members |
+| `team_task_create` / `team_task_update` / `team_task_list` | REFINE flow research | Track each research angle's deliverable |
+| `team_send_message` | REFINE flow research | Dispatch members, collect completion reports |
+| `team_shutdown_request` / `team_approve_shutdown` / `team_delete` | After REFINE research | **Closure Contract** — close the team once all research tasks are terminal |
 | `google_search` / `websearch_web_search_exa` | Research | Topic research, answer questions, validate changes |
 | `context7_resolve-library-id` + `context7_query-docs` | Tech topics | Official documentation for precise answers — MUST call resolve first |
-| `task(category="unspecified-high", background)` | Heavy work | Research, analysis, topic updates |
+| `task(category="unspecified-high", run_in_background=false)` | QUESTION flow (serial) | Single-deliverable steps with no parallelism (diagnostic task creation, roadmap update) |
 | `read`, `write`, `edit`, `bash`, `grep`, `glob` | All phases | File operations |
+
+## TEAM ORCHESTRATION (REFINE flow research)
+
+**When a phase has 2+ independent research/analysis agents, run them as a TEAM, not as individual `task()` calls.** Teams are ephemeral:
+
+1. **Create the team** with an inline spec — members are category-routed workers whose prompts are fully self-contained (read context → research/analyze → write deliverable file → report to lead via `team_send_message`). Max 8 members, max 4 parallel workers.
+2. **Register tracking tasks**: `team_task_create` one per deliverable, then `team_send_message` each member: claim task (`team_task_update` → `in_progress`), execute, mark `completed`, report summary.
+3. **Wait for completion** — `team_task_list` until every task is terminal. Members run in parallel; do NOT poll.
+4. **Closure Contract (MANDATORY, same turn)**: once every task is `completed`/`failed`, shut down each active member (`team_shutdown_request` → `team_approve_shutdown`) and `team_delete`. If delete says "members still active", re-run `team_status` once, then retry.
+5. **Fallback**: if `team_*` tools are unavailable, fall back to `task(category="unspecified-high", run_in_background=true)` with the same member prompts.
+6. **Do NOT use teams for serial single-deliverable steps** (QUESTION-flow diagnostic task, roadmap update) — individual delegates are correct there.
 
 ## Phase 0: INTENT GATE — Parse Input
 
@@ -243,10 +258,16 @@ Save a record of the interaction (question + task + outcome) to:
 
 Use this flow when intent is **REFINE**.
 
-### 2.1 Research the Current Topic + Requested Changes
+### 2.1 Research the Current Topic + Requested Changes (research TEAM)
+
+Run the two research angles as a **team** (see TEAM ORCHESTRATION above).
 
 ```typescript
-task(category="unspecified-high", run_in_background=true, prompt="
+team_create({ inline_spec: {
+  name: "<skill>-<topic>-refine-research",
+  members: [
+    // MEMBER A: Analysis of the current topic roadmap + requested changes
+    { name: "changes-analyst", category: "unspecified-high", prompt: `
 1. TASK: Analyze the current '{topic}' topic roadmap and the user's refinement request for '{skill}'.
 2. EXPECTED OUTCOME: A detailed analysis of what needs to change in the topic roadmap.
 
@@ -273,13 +294,10 @@ task(category="unspecified-high", run_in_background=true, prompt="
    - Skill: {skill}
    - Topic: {topic}
    - User request: {user_request}
-")
-```
-
-### 2.2 Online Research for Refinement
-
-```typescript
-task(category="unspecified-high", run_in_background=true, prompt="
+   - Claim your team task (team_task_update → in_progress, owner changes-analyst) when you start, mark it completed when the file is written, then report a 5-10 line summary to the lead via team_send_message.
+`},
+    // MEMBER B: Online research for refinement
+    { name: "online-researcher", category: "unspecified-high", prompt: `
 1. TASK: Research online to find better ways to structure and teach '{topic}' in '{skill}'.
 2. EXPECTED OUTCOME: A research document with web-sourced findings about best practices for teaching/learning this topic.
 
@@ -300,14 +318,29 @@ task(category="unspecified-high", run_in_background=true, prompt="
 5. MUST NOT DO:
    - Do NOT make any changes to files — research only
    - Do NOT skip research even if you're familiar with the topic
-")
+
+6. CONTEXT:
+   - Skill: {skill}
+   - Topic: {topic}
+   - User request: {user_request}
+   - Claim your team task (team_task_update → in_progress, owner online-researcher) when you start, mark it completed when the file is written, then report a 5-10 line summary to the lead via team_send_message.
+`}
+  ]
+}})
+// Register tasks + dispatch both members (see TEAM ORCHESTRATION).
 ```
+
+### 2.2 (part of team) — Online Research for Refinement
+
+Covered by the `online-researcher` member above.
 
 ### 2.3 Collect Both Results
 
-Wait for both to complete. Read the analysis and research files.
+Wait for members to report and verify via `team_task_list` that both tasks are `completed`. Read the analysis and research files. Then apply the **Closure Contract** (shutdown + delete the team).
 
 ### 2.4 Spawn Topic Roadmap Update Subagent
+
+**This step stays a single `task()` delegate (NOT a team)** — one serial deliverable, no parallelism. Same for the QUESTION-flow diagnostic task (Phase 1.1).
 
 ```typescript
 task(category="unspecified-high", run_in_background=false, timeout=300000, prompt="
@@ -436,8 +469,10 @@ If no git repo: ask if user wants to initialize one (same pattern).
 | Skill folder exists | 0 | Tell user to create roadmap first |
 | Topic folder + roadmap exists | 0 | Tell user to start learning first |
 | Intent correctly classified (QUESTION vs REFINE) | 0 | Re-classify, ask user if unsure |
+| Research team created with both members (REFINE) | 2 | Re-create team; fall back to background subagents only if team tools unavailable |
+| Analysis + research members completed (files exist) (REFINE) | 2 | Re-dispatch members via team_send_message |
+| All team tasks terminal + team deleted (Closure Contract) (REFINE) | 2 | Complete shutdown/delete before 2.4 |
 | Research subagent completed (QUESTION) | 1 | Re-spawn with better instructions |
-| Analysis + research subagents completed (REFINE) | 2 | Re-spawn |
 | Topic roadmap updated with proper structure (REFINE) | 2 | Fix via continuation |
 | Existing assignments not modified (REFINE) | 2 | Revert if accidentally changed |
 | Agent log written | 3 | Write it |
@@ -449,6 +484,9 @@ If no git repo: ask if user wants to initialize one (same pattern).
 |-----------|--------|
 | Topic not found | Suggest available topics from the skill roadmap |
 | User's question is too vague | Ask clarifying questions before researching |
+| Research team member fails | Re-run via `team_send_message` to that member (same team session) with more specific instructions |
+| Team member's deliverable file missing | Re-dispatch same member; if team closed, re-create 1-member team or use a single task() delegate |
+| Team tools unavailable | Fall back to `task(category="unspecified-high", run_in_background=true)` with same member prompts |
 | Research yields poor results | Try alternative search queries, broaden scope |
 | Refinement accidentally modifies assignments | Revert: `git checkout $SKILL_DIR/topics/$TOPIC/assignments/` |
 | User wants to undo refinement | Archive current, restore from git or previous file in runs/ |
@@ -458,6 +496,8 @@ If no git repo: ask if user wants to initialize one (same pattern).
 
 - ✅ **Classify intent first** — QUESTION or REFINE, they have different flows
 - ✅ **Read existing topic-roadmap.md** before doing anything
+- ✅ **Delegate REFINE-flow parallel research to a TEAM** — analysis + online research run as team members (see TEAM ORCHESTRATION)
+- ✅ **Apply the Closure Contract** — shut down members and delete the team as soon as all REFINE research tasks are terminal
 - ✅ **Research online** — don't rely on internal knowledge alone
 - ✅ **Keep explanations practical** — examples, code, analogies
 - ✅ **Preserve existing assignments** — never modify learning materials  
@@ -470,5 +510,7 @@ If no git repo: ask if user wants to initialize one (same pattern).
 - ❌ Do NOT modify assignment files during refinement — only the topic-roadmap.md
 - ❌ Do NOT skip web research — even for topics you're confident about
 - ❌ Do NOT give away assignment solutions when answering questions
+- ❌ Do NOT leave teams running after research completes — teams are ephemeral; close them (Closure Contract)
+- ❌ Do NOT use a team for serial single-deliverable steps (diagnostic task, roadmap update) — individual `task()` delegates are correct there
 - ❌ Do NOT proceed with ambiguous requests — ask clarifying questions first
 - ❌ Do NOT push to remote without explicit user approval

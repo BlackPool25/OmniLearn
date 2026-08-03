@@ -91,12 +91,27 @@ This system follows **Popperian falsification** — not "gather evidence to conf
 
 | Tool | When | Why |
 |------|------|-----|
-| `task(category="deep", background)` | Each research phase | Autonomous subagents for literature review, hypothesis, evidence, synthesis |
+| `team_create({ inline_spec })` | Phase 1 (literature review) and Phase 3 (evidence gathering) | Parallel independent research angles and the **adversarial confirmation/falsification pair** run as team members |
+| `team_task_create` / `team_task_update` / `team_task_list` | Phase 1 + Phase 3 | Track each member's deliverable; use `blockedBy` for member dependencies (e.g., synthesis member waits for review members) |
+| `team_send_message` | Phase 1 + Phase 3 | Dispatch members, collect completion reports |
+| `team_shutdown_request` / `team_approve_shutdown` / `team_delete` | After Phase 1 and Phase 3 | **Closure Contract** — close each team once its tasks are terminal |
+| `task(category="deep", run_in_background=false)` | Phase 2 (hypothesis) + Phase 4 (synthesis) | Serial single-deliverable phases with no parallelism |
 | `task(subagent_type="explore", background)` | Discovery | Find existing research, check iterator log |
 | `google_search` / `websearch_web_search_exa` | Every phase | Primary research tool — minimum 5-15 queries per phase |
 | `context7_query-docs` | Tech topics | Official documentation for libraries/frameworks |
 | `read`, `write`, `edit`, `bash`, `grep`, `glob` | Every phase | File operations |
 | `question` tool | User interaction | Present findings, ask for direction |
+
+## TEAM ORCHESTRATION (Phase 1 + Phase 3)
+
+**Any phase with 2+ independent research agents runs as a TEAM, not as individual `task()` calls.** Teams are ephemeral:
+
+1. **Create the team** with an inline spec — members are category-routed workers whose prompts are fully self-contained (read context → research → write deliverable files → report to lead via `team_send_message`). Max 8 members, max 4 parallel workers.
+2. **Register tracking tasks**: `team_task_create` one per deliverable. For member dependencies, use `blockedBy` (e.g., a merge member's task `blockedBy` the review members' task IDs — it starts only after they complete). Then `team_send_message` each member: claim task (`team_task_update` → `in_progress`), execute, mark `completed`, report summary.
+3. **Wait for completion** — `team_task_list` until every task is terminal. Members run in parallel; do NOT poll.
+4. **Closure Contract (MANDATORY, same turn as completion)**: once every task is `completed`/`failed`, shut down each active member (`team_shutdown_request` → `team_approve_shutdown`) and `team_delete`. If delete says "members still active", re-run `team_status` once, then retry.
+5. **Fallback**: if `team_*` tools are unavailable, fall back to `task(category="deep", run_in_background=true/false)` with the same member prompts.
+6. **Do NOT use teams for serial single-deliverable phases** (Phase 2 hypothesis formation, Phase 4 synthesis) — individual `deep` delegates are correct there.
 
 ---
 
@@ -174,96 +189,112 @@ Derive a filesystem-safe slug from the research question:
 
 **Goal**: Systematic understanding of what exists, what's known, where the gaps are.
 
-Spawn parallel subagents:
+Run as a **research TEAM** (see TEAM ORCHESTRATION): two parallel angle reviewers (academic + industry/practical), then a synthesis member that merges their angle reviews into the canonical files (its task is `blockedBy` the two review tasks).
 
 ```typescript
-task(category="deep", run_in_background=false, timeout=300000, prompt="
-1. TASK: Conduct a systematic literature review for the research topic '{topic}'.
-2. EXPECTED OUTCOME: literature-review.md, source-table.md, contradictions-map.md at {TOPIC_DIR}/01-background/
+team_create({ inline_spec: {
+  name: "<topic>-litreview",
+  members: [
+    // ANGLE REVIEWER 1: Academic / peer-reviewed sources
+    { name: "academic-reviewer", category: "unspecified-high", prompt: `
+1. TASK: Conduct a systematic academic-angle literature review for the research topic '{topic}'. You cover the ACADEMIC/PEER-REVIEWED evidence base only (papers, systematic reviews, meta-analyses, university material).
+
+2. EXPECTED OUTCOME: 01-background/review-academic.md + 01-background/source-table-academic.md at {TOPIC_DIR}/01-background/
 
 3. REQUIRED TOOLS: google_search, websearch_web_search_exa, context7_query-docs (if tech topic), read, write
 
-4. MUST DO — Scientific Literature Review Methodology:
-
-   STEP 1 — Search Strategy:
-   - Construct 3-5 distinct search queries using Boolean operators
-   - Example: '(concept_A OR synonym) AND (concept_B) NOT (irrelevant)'
-   - Search across multiple angles: academic, industry, practical, theoretical
-   - Minimum 10 search queries total
-   
-   STEP 2 — Source Collection & Screening:
-   - For each search result, evaluate against inclusion/exclusion criteria
-   - Rate each source by evidence level using this hierarchy:
-     Level 1 — Systematic review / meta-analysis (strongest)
-     Level 2 — Peer-reviewed empirical study (RCT, cohort, controlled)
-     Level 3 — Industry report / official documentation / technical specification
-     Level 4 — Expert analysis / practitioner guide / book
-     Level 5 — Blog post / opinion / anecdotal (weakest, use with caution)
-   - Flag the source type for every entry
-   
-   STEP 3 — Snowballing:
-   - For each high-quality source found, check its references (backward snowballing)
-   - Search for papers that cite it (forward snowballing)
-   - Aim to find 30-50% additional sources this way
-   
-   STEP 4 — Contradiction Mapping:
-   - Explicitly identify where sources disagree
-   - For each contradiction: what do they disagree about? How strong is each side?
-   - This is the KEY output — gaps for hypothesis generation come from contradictions, not absences
-   
-   STEP 5 — Write Files:
-   
-   4a) literature-review.md:
-   # Literature Review: {topic}
-   
-   ## Search Strategy
-   | Query | Database | Results | Screened | Included |
-   |-------|----------|---------|----------|----------|
-   | ... | ... | ... | ... | ... |
-   
-   ## PRISMA Flow
-   Records identified → Duplicates removed → Screened → Full-text assessed → Included
-   
-   ## Thematic Synthesis
-   ### Theme 1: {finding area}
-   - What the evidence says
-   - Level of consensus
-   - Key sources
-   
-   ### Theme 2: ...
-   
-   ## Gaps & Contradictions
-   - Contradiction 1: [Source A says X] vs [Source B says not-X]
-   - Gap 1: [Specific question no source addresses]
-   
-   4b) source-table.md:
-   | Source | Type | Evidence Level | Key Claim | Limitation |
-   |--------|------|---------------|-----------|------------|
-   | [link] | academic | 2 | X causes Y | Small sample |
-   
-   4c) contradictions-map.md:
-   # Contradictions Map
-   
-   ## Contradiction 1: {topic}
-   - **Claim A**: {what side A says} [sources]
-   - **Claim B**: {what side B says} [sources]
-   - **Root of disagreement**: {methodological difference / different context / etc.}
-   - **Resolution needed**: {what kind of study would resolve this}
-   - **Current balance**: {which side has stronger evidence, and why}
+4. MUST DO — Scientific Literature Review Methodology (your angle):
+   - **CURRENT DATE: {CURRENT_DATE}**
+   - STEP 1 — Search Strategy: construct 3-5 distinct queries with Boolean operators focused on academic sources; minimum 5 searches.
+   - STEP 2 — Source Collection & Screening: rate every source by evidence level (Level 1 systematic review/meta-analysis → Level 5 blog/opinion). Academic-angle sources will skew to Levels 1-3.
+   - STEP 3 — Snowballing: for each high-quality source, check references (backward) and citations (forward).
+   - STEP 4 — For each source record: source URL, type, evidence level, key claim, limitation.
+   - Write review-academic.md (thematic synthesis of what the academic evidence says, with levels of consensus) and source-table-academic.md (table of all sources with evidence ratings) to {TOPIC_DIR}/01-background/.
 
 5. MUST NOT DO:
    - Do NOT suppress contradictions to make the review seem cleaner
    - Do NOT include sources you haven't actually read and evaluated
-   - Do NOT stop at surface-level search — snowball and deep-search
    - Do NOT present opinion as fact — label evidence levels clearly
-   - Do NOT omit source limitations — every source has them, report them
+   - Do NOT cover the industry/practical angle — that is a teammate's job
 
 6. CONTEXT:
    - Topic: {topic}
-   - Research directory: {TOPIC_DIR}/
+   - Background directory: {TOPIC_DIR}/01-background/
    - Current date: {CURRENT_DATE}
-")
+   - Claim your team task (team_task_update → in_progress, owner academic-reviewer) when you start, mark it completed when your files are written, then report a short summary to the lead via team_send_message.
+`},
+    // ANGLE REVIEWER 2: Industry / practical sources
+    { name: "industry-reviewer", category: "unspecified-high", prompt: `
+1. TASK: Conduct a systematic INDUSTRY/PRACTICAL-angle literature review for the research topic '{topic}'. You cover the industry evidence base only (official documentation, technical specifications, practitioner guides, engineering reports, credible blogs).
+
+2. EXPECTED OUTCOME: 01-background/review-industry.md + 01-background/source-table-industry.md at {TOPIC_DIR}/01-background/
+
+3. REQUIRED TOOLS: google_search, websearch_web_search_exa, context7_query-docs (if tech topic), read, write
+
+4. MUST DO — Scientific Literature Review Methodology (your angle):
+   - **CURRENT DATE: {CURRENT_DATE}**
+   - STEP 1 — Search Strategy: construct 3-5 distinct queries with Boolean operators focused on industry/practical sources; minimum 5 searches.
+   - STEP 2 — Source Collection & Screening: rate every source by evidence level (Level 3 official documentation → Level 5 opinion). Industry-angle sources will skew to Levels 3-5.
+   - STEP 3 — Snowballing: for each high-quality source, check what it references.
+   - STEP 4 — For each source record: source URL, type, evidence level, key claim, limitation.
+   - Write review-industry.md (thematic synthesis of what industry practice says, with levels of consensus) and source-table-industry.md (table of all sources with evidence ratings) to {TOPIC_DIR}/01-background/.
+
+5. MUST NOT DO:
+   - Do NOT suppress contradictions to make the review seem cleaner
+   - Do NOT include sources you haven't actually read and evaluated
+   - Do NOT present opinion as fact — label evidence levels clearly
+   - Do NOT cover the academic angle — that is a teammate's job
+
+6. CONTEXT:
+   - Topic: {topic}
+   - Background directory: {TOPIC_DIR}/01-background/
+   - Current date: {CURRENT_DATE}
+   - Claim your team task (team_task_update → in_progress, owner industry-reviewer) when you start, mark it completed when your files are written, then report a short summary to the lead via team_send_message.
+`},
+    // SYNTHESIS/MERGE member: blocked by the two reviewers
+    { name: "synthesis-merger", category: "unspecified-high", prompt: `
+1. TASK: Merge the two angle literature reviews (academic + industry) for topic '{topic}' into the canonical review files, and build the contradictions map.
+
+2. EXPECTED OUTCOME (all in {TOPIC_DIR}/01-background/):
+   - literature-review.md — merged canonical review with PRISMA flow, search-strategy table, thematic synthesis across BOTH angles, and a Gaps & Contradictions section
+   - source-table.md — merged source table (all sources from both angle tables, deduplicated) with evidence levels
+   - contradictions-map.md — explicit contradictions: Claim A vs Claim B with sources, root of disagreement, resolution needed, current balance
+
+3. REQUIRED TOOLS: read, write
+
+4. MUST DO:
+   - Wait until BOTH the academic and industry angle reviews exist (your task is blocked on theirs).
+   - Read: {TOPIC_DIR}/01-background/review-academic.md, review-industry.md, source-table-academic.md, source-table-industry.md
+   - STEP 1 — Merge: combine both angle syntheses into one literature-review.md; keep the search-strategy table and add a PRISMA flow line (records identified → screened → included).
+   - STEP 2 — Contradiction mapping (THE key output — gaps for hypothesis generation come from contradictions, not absences): explicitly identify where sources disagree across angles. For each contradiction: what do they disagree about? How strong is each side?
+   - STEP 3 — Write the three canonical files listed above.
+
+5. MUST NOT DO:
+   - Do NOT invent sources — only merge what the angle reviewers found
+   - Do NOT suppress contradictions to make the review seem cleaner
+
+6. CONTEXT:
+   - Topic: {topic}
+   - Background directory: {TOPIC_DIR}/01-background/
+   - Current date: {CURRENT_DATE}
+   - Claim your team task (team_task_update → in_progress, owner synthesis-merger) when you start, mark it completed when the files are written, then report a short summary to the lead via team_send_message.
+`}
+  ]
+}})
 ```
+
+**Register tasks (note the dependency):**
+
+```typescript
+task_academic = team_task_create(teamRunId, subject: "Literature review — academic angle", description: "{TOPIC_DIR}/01-background/review-academic.md + source-table-academic.md")
+task_industry = team_task_create(teamRunId, subject: "Literature review — industry angle", description: "{TOPIC_DIR}/01-background/review-industry.md + source-table-industry.md")
+task_merge = team_task_create(teamRunId, subject: "Merge reviews + contradictions map", description: "literature-review.md + source-table.md + contradictions-map.md", blockedBy: [task_academic, task_industry])
+team_send_message(teamRunId, to: "academic-reviewer", body: "Task #1 registered — claim, execute, write files, mark completed, report.")
+team_send_message(teamRunId, to: "industry-reviewer", body: "Task #2 registered — claim, execute, write files, mark completed, report.")
+team_send_message(teamRunId, to: "synthesis-merger", body: "Task #3 registered (starts after tasks 1+2) — claim when unblocked, execute, mark completed, report.")
+```
+
+Wait for all three tasks to reach `completed` (via `team_task_list`), then apply the **Closure Contract** (shutdown + delete the team).
 
 After completion, verify: literature-review.md, source-table.md, and contradictions-map.md all exist with proper structure.
 
@@ -273,7 +304,9 @@ After completion, verify: literature-review.md, source-table.md, and contradicti
 
 **Goal**: Generate falsifiable hypotheses from the contradictions and gaps identified in Phase 1.
 
-**CRITICAL**: Hypothesis generation and hypothesis testing use DIFFERENT subagents. The generator proposes. The evaluator challenges. This prevents confirmation bias.
+**CRITICAL**: Hypothesis generation and hypothesis testing use DIFFERENT agents. The generator proposes. The evaluator challenges. This prevents confirmation bias.
+
+**This phase stays a single `task(category="deep", run_in_background=false)` delegate (NOT a team)** — one coherent serial deliverable (the hypothesis registry) produced from the completed Phase-1 contradictions; no parallelism to exploit. The adversarial split happens in Phase 3, where the testing is a team.
 
 ```typescript
 task(category="deep", run_in_background=false, timeout=300000, prompt="
@@ -362,15 +395,18 @@ After completion, verify: hypothesis-registry.md with 2-5 hypotheses, each with 
 
 ## Phase 3: EVIDENCE GATHERING
 
-**CRITICAL**: This phase uses TWO opposing subagents in parallel:
+**CRITICAL**: This phase runs the TWO opposing agents as a **TEAM** (the canonical adversarial use case — see TEAM ORCHESTRATION):
 - **Confirmation Agent**: Finds evidence that SUPPORTS each hypothesis
 - **Falsification Agent** (Devil's Advocate): Finds evidence that CONTRADICTS each hypothesis
 
-The falsification agent gets EQUAL resources. This is non-negotiable.
+The falsification agent gets EQUAL resources. This is non-negotiable — both are equal team members.
 
 ```typescript
-// LAUNCH BOTH IN PARALLEL
-task(category="deep", run_in_background=true, timeout=300000, prompt="
+team_create({ inline_spec: {
+  name: "<topic>-evidence",
+  members: [
+    // CONFIRMATION AGENT
+    { name: "confirmation-agent", category: "unspecified-high", prompt: `
 1. TASK: Find SUPPORTING evidence for the active hypotheses in topic '{topic}'.
 2. EXPECTED OUTCOME: Evidence files in {TOPIC_DIR}/03-evidence/supporting/
 
@@ -387,9 +423,10 @@ task(category="deep", run_in_background=true, timeout=300000, prompt="
    - Topic: {topic}
    - Evidence directory: {TOPIC_DIR}/03-evidence/
    - Hypothesis registry: {TOPIC_DIR}/02-hypotheses/hypothesis-registry.md
-")
-
-task(category="deep", run_in_background=true, timeout=300000, prompt="
+   - Claim your team task (team_task_update → in_progress, owner confirmation-agent) when you start, mark it completed when files are written, then report a short summary to the lead via team_send_message.
+`},
+    // FALSIFICATION AGENT (Devil's Advocate) — EQUAL resources, non-negotiable
+    { name: "falsification-agent", category: "unspecified-high", prompt: `
 1. TASK: Find CONTRADICTING evidence for the active hypotheses in topic '{topic}'.
    You are the DEVIL'S ADVOCATE. Your ONLY job is to disprove the hypotheses.
 2. EXPECTED OUTCOME: Evidence files in {TOPIC_DIR}/03-evidence/contradicting/
@@ -421,10 +458,24 @@ task(category="deep", run_in_background=true, timeout=300000, prompt="
    - Topic: {topic}
    - Evidence directory: {TOPIC_DIR}/03-evidence/
    - Hypothesis registry: {TOPIC_DIR}/02-hypotheses/hypothesis-registry.md
-")
+   - Claim your team task (team_task_update → in_progress, owner falsification-agent) when you start, mark it completed when files are written, then report a short summary to the lead via team_send_message.
+`}
+  ]
+}})
 ```
 
-After BOTH complete, merge results:
+**Register tasks + dispatch both members** (they run in parallel with equal resources):
+
+```typescript
+team_task_create(teamRunId, subject: "Evidence — supporting (confirmation)", description: "{TOPIC_DIR}/03-evidence/supporting/ + evidence-log.md")
+team_task_create(teamRunId, subject: "Evidence — contradicting (falsification)", description: "{TOPIC_DIR}/03-evidence/contradicting/ + evidence-log.md")
+team_send_message(teamRunId, to: "confirmation-agent", body: "Task #1 registered — claim, execute, write files, mark completed, report.")
+team_send_message(teamRunId, to: "falsification-agent", body: "Task #2 registered — claim, execute, write files, mark completed, report.")
+```
+
+Wait for BOTH tasks to reach `completed` (via `team_task_list`), then apply the **Closure Contract** (shutdown + delete the team).
+
+After BOTH complete, merge results (lead, in the lead's own context):
 
 ```bash
 # Update hypothesis-registry.md with findings from both agents
@@ -439,6 +490,8 @@ After BOTH complete, merge results:
 ## Phase 4: SYNTHESIS
 
 **Goal**: Produce structured conclusions from all evidence.
+
+**This phase stays a single `task(category="deep", run_in_background=false)` delegate (NOT a team)** — one coherent serial deliverable (findings/conclusions/open-questions/recommendations) read from all the Phase-1/3 evidence files; no parallelism to exploit.
 
 ```typescript
 task(category="deep", run_in_background=false, timeout=300000, prompt="
@@ -755,13 +808,16 @@ Every citation MUST be verified before inclusion:
 
 | Check | Phase | Action if Failed |
 |-------|-------|-----------------|
-| literature-review.md exists with PRISMA flow | 1 | Re-run Phase 1 with explicit PRISMA instructions |
+| literature-review.md exists with PRISMA flow | 1 | Re-run Phase 1 — re-dispatch the synthesis-merger member (or recreate team) with explicit PRISMA instructions |
 | source-table.md with evidence levels for every source | 1 | Re-run Phase 1 — every source must be graded |
 | contradictions-map.md identifies at least 2 contradictions | 1 | Re-run Phase 1 — finding contradictions is the goal |
+| Both angle reviews (academic + industry) merged into canonical files | 1 | Verify all three canonical files exist; check `team_task_list` for terminal tasks |
+| All Phase-1 + Phase-3 team tasks terminal + teams deleted (Closure Contract) | 1, 3 | Complete shutdown/delete before next phase |
 | hypothesis-registry.md with 2-5 falsifiable hypotheses | 2 | Each hypothesis must have falsification criterion |
 | Every hypothesis has explicit falsification criterion | 2 | Add: 'This hypothesis would be disproven by [X]' |
 | supporting/ AND contradicting/ evidence directories exist | 3 | Both must exist — falsification is mandatory |
 | Falsification agent ran for EVERY hypothesis | 3 | Check evidence-log for hypothesis coverage |
+| Falsification and confirmation members ran with equal resources | 3 | Both team tasks completed with outputs |
 | Every finding has confidence range (not vague language) | 4 | Add numerical range — no 'some evidence suggests' |
 | Every finding lists alternative explanations not ruled out | 4 | Add at least 1 alternative per finding |
 | open-questions.md has specific, actionable questions | 4 | Rewrite — 'more research needed' is not acceptable |
@@ -787,9 +843,12 @@ Every citation MUST be verified before inclusion:
 
 | Situation | Action |
 |-----------|--------|
-| No contradictions found in literature | Search more broadly — contradictions ALWAYS exist in real research. If truly none found, the topic may be settled or the research is too shallow. |
-| Falsification agent found nothing | Mark as 'Not Falsified After Exhaustive Search' — but document search depth (how many queries, which sources). |
+| No contradictions found in literature | Re-dispatch review members with broader scope — contradictions ALWAYS exist in real research. If truly none found, the topic may be settled or the research is too shallow. |
+| Falsification member found nothing | Mark as 'Not Falsified After Exhaustive Search' — but document search depth (how many queries, which sources). |
 | Supporting and contradicting evidence equally strong | Flag as 'Contested — unresolved.' Present both sides in synthesis. Do NOT force a conclusion. |
+| Team member fails in Phase 1 or Phase 3 | Re-run via `team_send_message` to that member (same team session) with more specific instructions |
+| Team member's deliverable files missing | Re-dispatch same member; if team closed, re-create a 1-member team or use a single `deep` delegate |
+| Team tools unavailable | Fall back to `task(category="deep", run_in_background=true/false)` with the same member prompts |
 | User asks a follow-up on non-existent section | Search INDEX.md for similar topics. If truly not found, acknowledge the gap and start fresh research. |
 | Same iteration hash detected | Block execution. Tell user: 'This exact question+approach was tried before with [result]. Try a different angle or confirm you want to retry.' |
 | Source verification finds hallucinated citations | Remove the citation. Add a note: 'Removed — source could not be verified.' Re-run the search that produced it. |

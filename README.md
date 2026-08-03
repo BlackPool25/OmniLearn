@@ -7,7 +7,7 @@
   <a href="https://github.com/BlackPool25/OmniLearn/stargazers"><img src="https://img.shields.io/github/stars/BlackPool25/OmniLearn" alt="Stars"></a>
 </p>
 
-You type `/omnilearn-roadmap I want to learn Rust`. Three subagents wake up — one researches the Rust ecosystem, another digs up learning paths and common pitfalls, the third figures out what you already know and what you don't. Minutes later, you have a personalized roadmap and a hands-on assignment with tests, a scaffold, and a solution guide.
+You type `/omnilearn-roadmap I want to learn Rust`. A research team wakes up — one member maps the Rust ecosystem, another digs up learning paths and common pitfalls, a third figures out what you already know and what you don't. Minutes later, you have a personalized roadmap and a hands-on assignment with tests, a scaffold, and a solution guide.
 
 That's OmniLearn — multi-agent learning workflows for [OpenCode](https://opencode.ai).
 
@@ -28,7 +28,7 @@ Then in OpenCode:
 Reading tutorials is the worst way to learn. You forget most of it, and you never hit the edge cases that teach you anything real. OmniLearn makes you write code instead.
 
 - **Every topic gets a real assignment** — not a multiple-choice quiz, not a "repeat after me" tutorial. You get a problem description, a scaffold with the boring parts filled in, and a test suite that tells you when you're done.
-- **Every assignment gets reviewed** — before you see it, an oracle subagent searches the web for current best practices and flags anything wrong, outdated, or misleading. BLOCKER issues get fixed before you waste time on bad content.
+- **Every assignment gets reviewed** — before you see it, an oracle agent searches the web for current best practices and flags anything wrong, outdated, or misleading. BLOCKER issues get fixed before you waste time on bad content.
 - **Stuck? You get a task, not more text** — instead of dumping another explanation on you, OmniLearn generates a focused micro-exercise that isolates exactly the concept you're struggling with.
 - **It adapts to what you already know** — if you already shipped a FastAPI CRUD API, it won't make you do that again. It checks your existing skills and integrates them.
 
@@ -47,25 +47,29 @@ Each command is a markdown file in `~/.config/opencode/command/`. They're plain 
 
 ## How it works
 
+OmniLearn uses **team orchestration**: independent research phases run as agent teams (parallel members with task tracking and a closure contract), while serial synthesis steps run as individual delegates.
+
 ```mermaid
 flowchart TB
   You[/"/omnilearn-roadmap Rust"\] --> O[Orchestrator]
-  O --> R1[Subagent: Research<br/>skill landscape]
-  O --> R2[Subagent: Find<br/>optimal learning path]
-  O --> R3[Subagent: Assess<br/>existing knowledge]
-  R1 & R2 & R3 --> S[Synthesize roadmap]
-  S --> C[Oracle: Quality review<br/>+ web research]
-  C -->|BLOCKER| R1
-  C -->|PASS| Out[(roadmap.md +<br/>assignment)]
+  O --> T[Create research team]
+  T --> M1[Team member: skill landscape]
+  T --> M2[Team member: learning path]
+  T --> M3[Team member: existing knowledge]
+  M1 & M2 & M3 --> C[Closure: shut down team]
+  C --> S[Synthesize roadmap<br/>single delegate]
+  S --> R[Oracle: quality review<br/>+ web research]
+  R -->|BLOCKER| S
+  R -->|PASS| Out[(roadmap.md +<br/>assignment)]
 ```
 
-You type a command. The orchestrator spins up subagents in parallel — some research, some create content, one critically reviews the output before you see it. You get back a structured learning path with real assignments.
+You type a command. The orchestrator spins up a team of research agents in parallel — some research, some create content, one critically reviews the output before you see it. You get back a structured learning path with real assignments.
 
 ## Prerequisites
 
 - **OpenCode** — `curl -fsSL https://opencode.ai/install | bash` (or `npx omnilearn-workflow` does it for you)
-- **Oh-My-OpenAgent** — `bunx oh-my-openagent install` (required for multi-agent workflows)
-- **Node.js >= 18**
+- **oh-my-openagent** — `npx oh-my-openagent@latest install` (required for multi-agent workflows; the installer does this non-interactively)
+- **Node.js >= 18** — no Bun required
 
 Run `npx omnilearn-workflow --check` anytime to see what's missing.
 
@@ -75,7 +79,7 @@ Run `npx omnilearn-workflow --check` anytime to see what's missing.
 npx omnilearn-workflow
 ```
 
-The installer copies the 6 command files to `~/.config/opencode/command/`, configures Context7 MCP for documentation lookups, and optionally sets up your learning directory.
+The installer copies the 6 command files to `~/.config/opencode/command/`, configures Context7 MCP for documentation lookups (remote mode — no API key), installs oh-my-openagent for multi-agent orchestration, and optionally sets up your learning directory.
 
 Manual install if you prefer:
 
@@ -89,10 +93,11 @@ cp packages/omnilearn-workflow/commands/*.md ~/.config/opencode/command/
 ```
 OmniLearn/
 ├── README.md
+├── docs/                        # Architecture + install reviews
 └── packages/omnilearn-workflow/
     ├── package.json
-    ├── bin/install.js          # npx installer
-    └── commands/               # The actual workflows
+    ├── bin/install.js           # npx installer
+    └── commands/                # The actual workflows
         ├── omnilearn-init.md
         ├── omnilearn-roadmap.md
         ├── omnilearn-roadmap-edit.md

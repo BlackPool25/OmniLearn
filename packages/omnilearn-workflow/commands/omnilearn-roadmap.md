@@ -129,13 +129,40 @@ All subagents that use MCP tools MUST follow these exact calling conventions:
 
 | Tool | When | Why |
 |------|------|-----|
-| `task(subagent_type="explore", background)` | Research phases | Codebase exploration — check existing skill data |
-| `task(category="unspecified-high", background)` | Content creation | Heavy research, roadmap synthesis, file writing |
-| `task(category="deep", background)` | Autonomous multi-step | Complex subtasks that need internal orchestration |
+| `team_create({ inline_spec })` | Parallel research phases | Spawn a research team (independent members in parallel) instead of individual background subagents |
+| `team_task_create` / `team_task_update` / `team_task_list` | Research phases | Track each member's deliverable; wait for all tasks to reach `completed` |
+| `team_send_message` | Research phases | Assign work to members, receive completion reports |
+| `team_status` | Research phases | Check member state before closure |
+| `team_shutdown_request` / `team_approve_shutdown` / `team_delete` | After research phases | **Closure Contract**: once ALL team tasks are terminal (`completed`/`failed`), shut down every member and delete the team in the same turn |
+| `task(category="unspecified-high", run_in_background=false)` | Synthesis (serial) | Single-deliverable steps with no parallelism (roadmap synthesis, roadmap update) — teams add nothing there |
+| `task(subagent_type="explore", background)` | Phase 0 codebase exploration | Lightweight discovery — not team material |
 | `google_search` / `websearch_web_search_exa` | Research phases | Web research for content, learning paths, best practices |
 | `context7_resolve-library-id` + `context7_query-docs` | Tech skills | Official documentation for languages, frameworks, libraries |
 | `read`, `write`, `edit`, `bash`, `grep`, `glob` | Every phase | File operations and navigation |
 | `bash(git ...)` | Completion phase | Git commit after roadmap creation |
+
+## TEAM ORCHESTRATION PATTERN (use for ALL parallel research phases)
+
+**When a phase has 2+ independent research/writing agents, run them as a TEAM, not as individual `task()` calls.** One `team_create` per parallel phase; team members are category-routed workers that write their findings to markdown files and report to you.
+
+1. **Create the team** with an inline spec (teams are ephemeral — no persisted config needed):
+   ```json
+   {"name": "<phase>-research", "members": [
+     {"name": "<member-1>", "category": "unspecified-high", "prompt": "<full self-contained research prompt: read context → research → write deliverable file → report to lead via team_send_message>"},
+     {"name": "<member-2>", "category": "unspecified-high", "prompt": "..."}
+   ]}
+   ```
+   - Member prompts MUST be fully self-contained (they execute without further instruction): read the context files, do the research, write the deliverable, report completion.
+   - Max 8 members, max 4 parallel workers per team.
+2. **Register tracking tasks**: `team_task_create` one task per member deliverable. Then `team_send_message` to each member telling them to claim their task (`team_task_update` → `in_progress`), execute, mark it `completed`, and report a short summary.
+3. **Wait for completion** — members message you when done; check `team_task_list` until every task is terminal. Members run in parallel; do NOT poll.
+4. **Closure Contract (MANDATORY, same turn as completion)**: once every task is `completed`/`failed`:
+   - For each active member from `team_status`: `team_shutdown_request` then `team_approve_shutdown`
+   - `team_delete` the team. If delete says "members still active", run `team_status` once more, then retry `team_delete`.
+5. **Fallback**: if the `team_*` tools are unavailable (team mode disabled), fall back to the original `task(category="unspecified-high", run_in_background=true)` pattern — same member prompts, same deliverables.
+6. **Do NOT use teams for serial single-deliverable steps** (synthesis, roadmap updates) — a 1-member team is ceremony, not value.
+
+**Agent communication is still via MD files**: team members write findings to `{RUNS_DIR}/*.md`; the next step reads those files. No information loss from summarization.
 
 ## Phase 0: INTENT GATE — Parse Input & Validate
 
@@ -217,17 +244,18 @@ Cross-Skill Context:
 
 This summary will be passed to ALL research and synthesis subagents so they can design an adaptive, personalized roadmap.
 
-## Phase 1: PARALLEL RESEARCH — Two Subagents Simultaneously
+## Phase 1: PARALLEL RESEARCH — Research Team
 
-Spawn BOTH subagents in parallel. Each does exhaustive research and writes to a file.
+Run the two research angles as a **team** (see TEAM ORCHESTRATION PATTERN above). Each member does exhaustive research and writes to a file, then reports to you. They run in parallel.
 
-### 1.1 Subagent A: Content Research — "What to Learn" (Level-Adaptive)
-
-This subagent researches EVERYTHING a person must know to be real-world ready in this skill. Not just theory — practical engineering competence.
-**BUT: it must ADAPT the research based on the user's existing level and known related skills.**
+### 1.1 Create the research team
 
 ```typescript
-task(category="unspecified-high", run_in_background=true, prompt="
+team_create({ inline_spec: {
+  name: "<skill>-roadmap-research",
+  members: [
+    // MEMBER A: Content Research — "What to Learn" (Level-Adaptive)
+    { name: "content-researcher", category: "unspecified-high", prompt: `
 1. TASK: Research everything a person must learn to become genuinely skilled at {skill}. ADAPT the research based on the user's existing knowledge and related skills they already have.
 
 2. EXPECTED OUTCOME: A comprehensive, structured markdown file covering all knowledge areas, concepts, tools, and practices needed for real-world proficiency in {skill} — **filtered and prioritized based on what the user already knows**.
@@ -279,16 +307,10 @@ task(category="unspecified-high", run_in_background=true, prompt="
    - User preferences: {user preferences summary}
    - Cross-skill context (existing skills the user has): {cross-skill context}
    - This research will feed into a roadmap synthesis step that must produce a personalized, level-appropriate roadmap
-")
-```
-
-### 1.2 Subagent B: Learning Path Research — "How to Learn It" (Level-Adaptive)
-
-This subagent researches the best pedagogical approaches, common pitfalls, and learning strategies for this specific skill.
-**ADAPT based on the user's existing level and cross-skill knowledge — an intermediate learner needs a very different path than a beginner.**
-
-```typescript
-task(category="unspecified-high", run_in_background=true, prompt="
+   - Claim your team task (team_task_update → in_progress, owner content-researcher) when you start, mark it completed when the file is written, then report a 5-10 line summary to the lead via team_send_message.
+`},
+    // MEMBER B: Learning Path Research — "How to Learn It" (Level-Adaptive)
+    { name: "learning-researcher", category: "unspecified-high", prompt: `
 1. TASK: Research optimal learning strategies, common pitfalls, and effective teaching approaches for {skill} — ADAPTED to the user's existing level and related knowledge.
 2. EXPECTED OUTCOME: A detailed markdown file covering how to structure learning, common mistakes, and best practices for mastering {skill} at the user's specific level.
 
@@ -344,14 +366,29 @@ task(category="unspecified-high", run_in_background=true, prompt="
    - User preferences: {user preferences summary}
    - Cross-skill context (existing skills the user has): {cross-skill context}
    - This research will feed into a roadmap synthesis step that must produce a personalized, level-appropriate roadmap
-")
+   - Claim your team task (team_task_update → in_progress, owner learning-researcher) when you start, mark it completed when the file is written, then report a 5-10 line summary to the lead via team_send_message.
+`}
+  ]
+}})
+```
+
+### 1.2 Register tasks and dispatch
+
+```typescript
+// One tracking task per deliverable
+team_task_create(teamRunId, subject: "Content research (what to learn)", description: "Deliverable: {RUNS_DIR}/research-content.md")
+team_task_create(teamRunId, subject: "Learning path research (how to learn)", description: "Deliverable: {RUNS_DIR}/research-learning.md")
+
+// Assign and wake each member
+team_send_message(teamRunId, to: "content-researcher", body: "Your task is registered as task #1: claim it via team_task_update (status in_progress, owner content-researcher), execute, write research-content.md, mark completed, report.")
+team_send_message(teamRunId, to: "learning-researcher", body: "Your task is registered as task #2: claim it via team_task_update (status in_progress, owner learning-researcher), execute, write research-learning.md, mark completed, report.")
 ```
 
 ### 1.3 Wait for Both to Complete
 
-Wait for the system notification. Collect both results via `background_output()`.
+Members report via `team_send_message` when done; verify with `team_task_list` that BOTH tasks are `completed`. **Do NOT do any other work during this phase** — the research members are doing the heavy lifting.
 
-**Do NOT do any other work during this phase.** The research subagents are doing the heavy lifting.
+**Then apply the Closure Contract** (see TEAM ORCHESTRATION PATTERN): shut down every member (`team_shutdown_request` → `team_approve_shutdown`) and `team_delete` the team before proceeding to synthesis.
 
 ## Phase 2: ROADMAP SYNTHESIS — Create the Master Roadmap
 
@@ -368,6 +405,7 @@ Read both files to extract key findings.
 ### 2.2 Spawn Roadmap Synthesizer Subagent (Level-Adaptive + Cross-Skill)
 
 This is the most critical step. The synthesizer must produce a **PERSONALIZED** roadmap that adapts to the user's level and integrates their existing skills.
+**This step stays a single `task()` delegate (NOT a team)** — it is one serial deliverable with no parallelism; a 1-member team would be ceremony, not value.
 
 ```typescript
 task(category="unspecified-high", run_in_background=false, timeout=300000, prompt="
@@ -618,8 +656,10 @@ Mark the task as complete. Update UserPreferences.md if new relevant information
 
 | Check | Phase | Action if Failed |
 |-------|-------|-----------------|
-| Content research subagent completed | 1 | Block — must have research |
-| Learning path subagent completed | 1 | Block — must have research |
+| Research team created with both members | 1 | Re-create team — team mode is preferred; fall back to background subagents only if team tools unavailable |
+| Content research member completed (file exists) | 1 | Block — must have research |
+| Learning path member completed (file exists) | 1 | Block — must have research |
+| All team tasks terminal + team deleted (Closure Contract) | 1 | Complete shutdown/delete before Phase 2 |
 | Cross-skill inventory scanned | 0 | Scan $LEARNING_DIR/*/ (skip .omnilearn) |
 | User level extracted from preferences | 0 | Infer from available signals |
 | Roadmap has 5+ substantive topics | 2 | Re-synthesize with fix |
@@ -639,8 +679,10 @@ Mark the task as complete. Update UserPreferences.md if new relevant information
 | Situation | Action |
 |-----------|--------|
 | Skill folder already exists with roadmap | Inform user, suggest /omnilearn-roadmap-edit |
-| Research subagent fails | Diagnose, re-spawn with more specific instructions |
-| Roadmap synthesis is poor quality | Re-spawn synthesis with fix instructions |
+| Research team member fails | Diagnose, re-run via `team_send_message` to that member (same team session) with more specific instructions |
+| Team member's deliverable file missing | Re-dispatch the same member; if the team was already closed, re-create a 1-member team or use a single task() delegate |
+| Roadmap synthesis is poor quality | Re-spawn synthesis with fix instructions (continuation session) |
+| Team tools unavailable (team mode disabled) | Fall back to the original `task(category="unspecified-high", run_in_background=true)` pattern with the same member prompts |
 | Subagent can't access web search | Use alternative search tools, proceed with available data |
 | User wants different structure | Accept feedback, tell them to use /omnilearn-roadmap-edit |
 | User says "I already know this topic" | Show how to use /omnilearn-roadmap-edit to skip it; note user's level in preferences |
@@ -651,7 +693,8 @@ Mark the task as complete. Update UserPreferences.md if new relevant information
 
 ## What You MUST Do
 
-- ✅ **Delegate research to parallel subagents** — never do research yourself
+- ✅ **Delegate parallel research to a TEAM** — never do research yourself; use `team_create` with one member per research angle (see TEAM ORCHESTRATION PATTERN)
+- ✅ **Apply the Closure Contract** — shut down members and delete the team as soon as all research tasks are terminal
 - ✅ **Write findings to files** — communication between agents is via markdown files
 - ✅ **Read UserPreferences.md at start** — adapt to the user
 - ✅ **Update preferences organically** — only when you have clear signal
@@ -665,7 +708,9 @@ Mark the task as complete. Update UserPreferences.md if new relevant information
 
 ## What You MUST NOT Do
 
-- ❌ Do NOT do research yourself — always delegate to subagents
+- ❌ Do NOT do research yourself — always delegate to a team
+- ❌ Do NOT leave teams running after research completes — teams are ephemeral; close them (Closure Contract) or they burn member-turn budget
+- ❌ Do NOT use a team for serial single-deliverable steps (synthesis, updates) — individual `task()` delegates are correct there
 - ❌ Do NOT skip reading UserPreferences.md if it exists
 - ❌ Do NOT ignore cross-skill context — always scan existing skills
 - ❌ Do NOT create a roadmap that wastes time on known topics

@@ -18,7 +18,6 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
 import {
@@ -59,11 +58,9 @@ const COMMANDS = [
   'omnilearn-research.md',
 ];
 
-const PKG_VERSION = '1.1.0';
-
-// Pinned versions for supply-chain transparency
-// Context7 MCP — official Upstash package for documentation lookup MCP
-const CONTEXT7_MCP_SPEC = '@upstash/context7-mcp@latest';
+const PKG_VERSION = JSON.parse(
+  fs.readFileSync(path.join(PKG_DIR, 'package.json'), 'utf-8'),
+).version;
 
 // ─── JSONC Helpers ───
 
@@ -160,15 +157,6 @@ function isOpenCodeInstalled() {
   if (fs.existsSync(OPENCODE_COMMAND_DIR)) return true;
   try {
     execSync('command -v opencode 2>/dev/null', { stdio: 'pipe' });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function isBunAvailable() {
-  try {
-    execSync('command -v bun 2>/dev/null', { stdio: 'pipe' });
     return true;
   } catch {
     return false;
@@ -453,70 +441,25 @@ async function ensureOhMyOpenAgent(configInfo, autoYes) {
   if (!shouldInstall) {
     log.warn('oh-my-openagent is strongly recommended for OmniLearn.');
     log.info('Install manually when ready:');
-    if (isBunAvailable()) {
-      log.info(`  ${pc.cyan('bunx oh-my-openagent install')}`);
-    } else {
-      log.info('  Install bun first:  curl -fsSL https://bun.sh/install | bash');
-      log.info(`  Then: bunx oh-my-openagent install`);
-    }
+    log.info(`  ${pc.cyan('npx oh-my-openagent@latest install')}`);
     return false;
   }
 
-  // Check if Bun is available (required for oh-my-openagent install)
-  if (!isBunAvailable()) {
-    const bunApproved = await confirmRemoteScript(
-      {
-        what: 'Bun (JavaScript runtime)',
-        source: 'https://bun.sh',
-        command:
-          'curl -fsSL https://bun.sh/install | bash',
-      },
-      autoYes,
-    );
-    if (!bunApproved) {
-      log.warn('Bun install skipped. Install manually:');
-      log.info(`  ${pc.cyan('curl -fsSL https://bun.sh/install | bash')}`);
-      log.info(`  ${pc.cyan('bunx oh-my-openagent install')}`);
-      return false;
-    }
-
-    const bs = createSpinner();
-    bs.start('Installing Bun...');
-    try {
-      execSync('curl -fsSL https://bun.sh/install | bash', {
-        stdio: 'inherit',
-        timeout: 60000,
-        maxBuffer: 10 * 1024 * 1024,
-      });
-      bs.stop('Bun installed');
-    } catch (err) {
-      bs.stop('Bun install failed');
-      log.error(`Could not install Bun: ${err.message}`);
-      log.info('Install manually:');
-      log.info(`  ${pc.cyan('curl -fsSL https://bun.sh/install | bash')}`);
-      log.info(`  ${pc.cyan('bunx oh-my-openagent install')}`);
-      return false;
-    }
-  }
-
-  // Install oh-my-openagent
-  // Bun may have been freshly installed; if it's not in PATH, use the full path
-  const bunHome = path.join(os.homedir(), '.bun', 'bin');
-  const bunPath = fs.existsSync(path.join(bunHome, 'bun')) ? bunHome : null;
-  const installEnv = bunPath
-    ? { ...process.env, PATH: `${bunPath}:${process.env.PATH}` }
-    : process.env;
-
-  const os = createSpinner();
-  os.start('Running oh-my-openagent installer...');
+  // npx path (documented alternative to bunx) — no Bun runtime needed.
+  // WARNING: --no-tui fails validation unless --claude/--gemini/--copilot are
+  // passed. "no" binds no subscription; providers are configured in OpenCode.
+  const sp = createSpinner();
+  sp.start('Running oh-my-openagent installer...');
   try {
-    execSync('bunx oh-my-openagent install --no-tui --platform=opencode --skip-auth 2>/dev/null', {
-      stdio: 'inherit',
-      timeout: 120000,
-      maxBuffer: 10 * 1024 * 1024,
-      env: installEnv,
-    });
-    os.stop('oh-my-openagent installed');
+    execSync(
+      'npx -y oh-my-openagent@latest install --no-tui --platform=opencode --claude=no --openai=no --gemini=no --copilot=no --skip-auth',
+      {
+        stdio: 'inherit',
+        timeout: 180000,
+        maxBuffer: 10 * 1024 * 1024,
+      },
+    );
+    sp.stop('oh-my-openagent installed');
 
     // Refresh config after install
     const refreshed = readOpenCodeConfigSafe();
@@ -531,10 +474,10 @@ async function ensureOhMyOpenAgent(configInfo, autoYes) {
     log.success('oh-my-openagent is now installed and configured');
     return true;
   } catch (err) {
-    os.stop('oh-my-openagent install interrupted or failed');
-    log.warn('oh-my-openagent installer needs interactive input.');
-    log.info('Run it manually in a terminal:');
-    log.info(`  ${pc.cyan('bunx oh-my-openagent install')}`);
+    sp.stop('oh-my-openagent install failed');
+    log.warn('The non-interactive installer needs a bit more setup on your side.');
+    log.info('Run it manually in a terminal (interactive TUI):');
+    log.info(`  ${pc.cyan('npx oh-my-openagent@latest install')}`);
     log.info('Follow the prompts to configure your provider and models.');
     return false;
   }
@@ -648,7 +591,7 @@ async function runHealthCheck() {
     checks.push(`${pc.green('✓')} oh-my-openagent plugin registered`);
   } else {
     checks.push(`${pc.yellow('⚠')} oh-my-openagent not registered`);
-    checks.push(`  ${pc.dim('Run: bunx oh-my-openagent install')}`);
+    checks.push(`  ${pc.dim('Run: npx oh-my-openagent@latest install')}`);
   }
 
   // 5. OmniLearn config
@@ -665,14 +608,6 @@ async function runHealthCheck() {
   } else {
     checks.push(`${pc.yellow('⚠')} Learning directory not configured`);
     checks.push(`  ${pc.dim('Run /omnilearn-init in OpenCode or re-run npx omnilearn-workflow')}`);
-  }
-
-  // 6. Bun (needed for oh-my-openagent)
-  if (isBunAvailable()) {
-    checks.push(`${pc.green('✓')} Bun available`);
-  } else {
-    checks.push(`${pc.yellow('⚠')} Bun not installed (needed for oh-my-openagent install)`);
-    checks.push(`  ${pc.dim('Install: curl -fsSL https://bun.sh/install | bash')}`);
   }
 
   const report = checks.join('\n');

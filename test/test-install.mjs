@@ -266,14 +266,20 @@ test('install.js imports resolve correctly', () => {
 
 test('install.js uses correct oh-my-openagent flag', () => {
   const content = fs.readFileSync(INSTALL_JS, 'utf-8');
-  // Find the actual execSync line with the installer call
-  const execLine = content.split('\n').find(l =>
-    l.includes('execSync') && l.includes('oh-my-openagent install') && l.includes('--no-tui')
-  );
-  assert.ok(execLine, 'should have execSync line with --no-tui flag');
-  assert.ok(!execLine.includes('--yes'), 'should NOT use --yes flag');
-  assert.ok(execLine.includes('--no-tui'), 'should use --no-tui flag');
-  assert.ok(execLine.includes('--platform=opencode'), 'should specify platform');
+  // Find the execSync call and its command string (may span multiple lines)
+  const execMatch = content.match(/execSync\(\s*'([^']+oh-my-openagent[^']+)'/);
+  assert.ok(execMatch, 'should have execSync call with oh-my-openagent install');
+  const cmd = execMatch[1];
+  assert.ok(!cmd.includes('--yes'), 'should NOT use --yes flag');
+  assert.ok(cmd.includes('--no-tui'), 'should use --no-tui flag');
+  assert.ok(cmd.includes('--platform=opencode'), 'should specify platform');
+  // --no-tui requires the three provider flags or the CLI fails validation
+  assert.ok(cmd.includes('--claude=no'), 'should pass --claude=no (required by --no-tui)');
+  assert.ok(cmd.includes('--gemini=no'), 'should pass --gemini=no (required by --no-tui)');
+  assert.ok(cmd.includes('--copilot=no'), 'should pass --copilot=no (required by --no-tui)');
+  assert.ok(!cmd.includes('2>/dev/null'), 'should NOT mask installer errors');
+  // Uses npx (no Bun runtime dependency)
+  assert.ok(cmd.startsWith('npx -y oh-my-openagent@latest install'), 'should use npx');
 });
 
 test('install.js uses readOpenCodeConfigSafe (not old readOpenCodeConfig)', () => {
