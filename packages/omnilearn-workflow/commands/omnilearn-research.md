@@ -2,7 +2,7 @@
 name: omnilearn-research
 description: >-
   Multi-agent deep research with adaptive methodology routing (Popperian severe testing, PRISMA 2020 systematic, PRISMA-ScR scoping, Design Science) + GRADE + adversarial verification. Use for research paper, gap analysis, project ideation, deep analysis, systematic review. Triggers "/omnilearn-research", "research", "gap analysis", "literature review", "project ideation", "deep research".
-version: 2.1.0
+version: 2.2.0
 last-verified: 2026-09-02
 ---
 
@@ -150,10 +150,8 @@ Progressive disclosure — heavy templates live in `references/research-template
 
 | Tool | When | Why |
 |------|------|-----|
-| `team_create({ inline_spec })` | Phase 1 (literature review) and Phase 3 (evidence gathering) | Parallel independent research angles and the **adversarial confirmation/falsification pair** run as team members |
-| `team_task_create` / `team_task_update` / `team_task_list` | Phase 1 + Phase 3 | Track each member's deliverable; use `blockedBy` for member dependencies (e.g., synthesis member waits for review members) |
-| `team_send_message` | Phase 1 + Phase 3 | Dispatch members, collect completion reports |
-| `team_shutdown_request` / `team_approve_shutdown` / `team_delete` | After Phase 1 and Phase 3 | **Closure Contract** — close each team once its tasks are terminal |
+| `task(category="deep", run_in_background=true)` | Phase 1 (literature review) and Phase 3 (evidence gathering) | Parallel independent research angles and the **adversarial confirmation/falsification pair** run as background `task()` subagents (normal orchestration — no `team_*`) |
+| `task(category="deep", run_in_background=false)` | Phase 2 (hypothesis) + Phase 4 (synthesis) | Serial single-deliverable phases with no parallelism — same `task()` primitive, blocking |
 | `task(category="deep", run_in_background=false)` | Phase 2 (hypothesis) + Phase 4 (synthesis) | Serial single-deliverable phases with no parallelism |
 | `task(subagent_type="explore", background)` | Discovery | Find existing research, check iterator log |
 | `google_search` / `websearch_web_search_exa` | Industry/practical + grey lit | Web-biased tranche — complement with academic DBs |
@@ -168,11 +166,11 @@ To select databases, consult `protocol.md` information-sources table (PRISMA ite
 
 **Any phase with 2+ independent research agents runs as a TEAM, not as individual `task()` calls.** Teams are ephemeral:
 
-1. **Create the team** with an inline spec — members are category-routed workers whose prompts are fully self-contained (read context → research → write deliverable files → report to lead via `team_send_message`). Max 8 members, max 4 parallel workers.
-2. **Register tracking tasks**: `team_task_create` one per deliverable. For member dependencies, use `blockedBy` (e.g., a merge member's task `blockedBy` the review members' task IDs — it starts only after they complete). Then `team_send_message` each member: claim task (`team_task_update` → `in_progress`), execute, mark `completed`, report summary.
-3. **Wait for completion** — `team_task_list` until every task is terminal. Members run in parallel; do NOT poll.
-4. **Closure Contract (MANDATORY, same turn as completion)**: once every task is `completed`/`failed`, shut down each active member (`team_shutdown_request` → `team_approve_shutdown`) and `team_delete`. If delete says "members still active", re-run `team_status` once, then retry.
-5. **Fallback**: if `team_*` tools are unavailable, fall back to `task(category="deep", run_in_background=true/false)` with the same member prompts.
+1. **Spawn parallel subagents** with `task(category="deep", run_in_background=true)` — each member is a category-routed worker whose prompt is fully self-contained (read context → research → write deliverable files → write report). Max 8 members, max 4 parallel workers. Capture `bg_...` + `ses_...` IDs.
+2. **No `team_*` / no `blockedBy`** — parallelism is via background `task()` only. For the merge step (synthesis-merger), wait for the 3 reviewer tasks to reach terminal via `background_output(task_id="bg_...")` after the `<system-reminder>` fires, then spawn the merger as a blocking `task(category="deep", run_in_background=false)` (or background with explicit wait).
+3. **Wait for completion** — do NOT poll `background_output` before the `<system-reminder>` fires. Collect each `bg_...` result with `background_output(task_id="bg_...")` when notified. Members run in parallel; file completion (`{TOPIC_DIR}/...` files written) is the sync signal.
+4. **No team shutdown needed** — background tasks are ephemeral; cancel only if needed via `background_cancel(taskId="bg_...")` individually (never `all=true`). No `team_*` shutdown needed.
+5. **No team fallback needed** — normal orchestration is the only path: all parallel work uses `task(category="deep", run_in_background=true)` + `background_output`; serial work uses `task(category="deep", run_in_background=false)`.
 6. **Do NOT use teams for serial single-deliverable phases** (Phase 2 hypothesis formation, Phase 4 synthesis) — individual `deep` delegates are correct there.
 
 ---
@@ -333,10 +331,10 @@ fi
 
 **Goal:** To systematically capture what exists, what is known, and where the voids lie — with reproducibility.
 
-Run as a **research TEAM** (see TEAM ORCHESTRATION): three parallel angle reviewers (academic + industry + empirical), then a synthesis member that merges their angle reviews into the canonical files (its task is `blockedBy` the three review tasks).
+Run as **parallel subagents (normal orchestration)**: three parallel angle reviewers (academic + industry + empirical) via `task(category="deep", run_in_background=true)`, then a synthesis member that merges their angle reviews into the canonical files (spawned *after* `background_output` shows all 3 reviewers terminal).
 
 ```typescript
-team_create({ inline_spec: {
+task(category="deep", run_in_background=true, prompt="Parallel subagent:
   name: "<topic>-litreview",
   members: [
     // ANGLE REVIEWER 1: Academic / peer-reviewed sources
@@ -369,7 +367,7 @@ team_create({ inline_spec: {
    - Route: {route}
    - Background directory: {TOPIC_DIR}/01-background/
    - Current date: {CURRENT_DATE}
-   - To claim the team task (team_task_update → in_progress, owner academic-reviewer) when starting, mark it completed when files are written, then report a short summary to the lead via team_send_message.
+   - To claim the team task (task_update → in_progress, owner academic-reviewer) when starting, mark it completed when files are written, then report a short summary to the lead via background_output.
 `},
     // ANGLE REVIEWER 2: Industry / practical sources
     { name: "industry-reviewer", category: "unspecified-high", prompt: `
@@ -400,7 +398,7 @@ team_create({ inline_spec: {
    - Route: {route}
    - Background directory: {TOPIC_DIR}/01-background/
    - Current date: {CURRENT_DATE}
-   - To claim the team task (team_task_update → in_progress, owner industry-reviewer) when starting, mark it completed when files are written, then report via team_send_message.
+   - To claim the team task (task_update → in_progress, owner industry-reviewer) when starting, mark it completed when files are written, then report via background_output.
 `},
     // ANGLE REVIEWER 3: Empirical / reproducibility sources
     { name: "empirical-reviewer", category: "unspecified-high", prompt: `
@@ -427,7 +425,7 @@ team_create({ inline_spec: {
    - Route: {route}
    - Background directory: {TOPIC_DIR}/01-background/
    - Current date: {CURRENT_DATE}
-   - To claim the team task (team_task_update → in_progress, owner empirical-reviewer) when starting, mark it completed when files are written, then report via team_send_message.
+   - To claim the team task (task_update → in_progress, owner empirical-reviewer) when starting, mark it completed when files are written, then report via background_output.
 `},
     // SYNTHESIS/MERGE member: blocked by the three reviewers
     { name: "synthesis-merger", category: "unspecified-high", prompt: `
@@ -466,7 +464,7 @@ team_create({ inline_spec: {
    - Route: {route}
    - Background directory: {TOPIC_DIR}/01-background/
    - Current date: {CURRENT_DATE}
-   - To claim the team task (team_task_update → in_progress, owner synthesis-merger) when starting, mark it completed when files are written, then report via team_send_message.
+   - To claim the team task (task_update → in_progress, owner synthesis-merger) when starting, mark it completed when files are written, then report via background_output.
 `}
   ]
 }})
@@ -475,17 +473,17 @@ team_create({ inline_spec: {
 **Register tasks (note the dependency):**
 
 ```typescript
-task_academic  = team_task_create(teamRunId, subject: "Literature review — academic angle", description: "{TOPIC_DIR}/01-background/review-academic.md + source-table-academic.md + search-log entries")
-task_industry  = team_task_create(teamRunId, subject: "Literature review — industry angle", description: "{TOPIC_DIR}/01-background/review-industry.md + source-table-industry.md + search-log entries")
-task_empirical = team_task_create(teamRunId, subject: "Literature review — empirical angle", description: "{TOPIC_DIR}/01-background/review-empirical.md + source-table-empirical.md + search-log entries")
-task_merge     = team_task_create(teamRunId, subject: "Merge reviews + gap map + PRISMA", description: "literature-review.md + source-table.md + gap-map.md + gap-heatmap.csv + contradictions-map.md + bias-assessment.md + prisma-flow.md + PRISMA-checklist.md", blockedBy: [task_academic, task_industry, task_empirical])
-team_send_message(teamRunId, to: "academic-reviewer", body: "Task #1 registered — claim, execute, write files, mark completed, report.")
-team_send_message(teamRunId, to: "industry-reviewer", body: "Task #2 registered — claim, execute, write files, mark completed, report.")
-team_send_message(teamRunId, to: "empirical-reviewer", body: "Task #3 registered — claim, execute, write files, mark completed, report.")
-team_send_message(teamRunId, to: "synthesis-merger", body: "Task #4 registered (starts after tasks 1-3) — claim when unblocked, execute, mark completed, report.")
+bg_academic = task(category="deep", run_in_background=true, description: "Literature review — academic angle", description: "{TOPIC_DIR}/01-background/review-academic.md + source-table-academic.md + search-log entries")
+bg_industry = task(category="deep", run_in_background=true, description: "Literature review — industry angle", description: "{TOPIC_DIR}/01-background/review-industry.md + source-table-industry.md + search-log entries")
+bg_empirical = task(category="deep", run_in_background=true, description: "Literature review — empirical angle", description: "{TOPIC_DIR}/01-background/review-empirical.md + source-table-empirical.md + search-log entries")
+merger_task = // spawned after 3 background_output collects, subject: task(category="deep", run_in_background=true, description: "Merge reviews + gap map + PRISMA", description: "literature-review.md + source-table.md + gap-map.md + gap-heatmap.csv + contradictions-map.md + bias-assessment.md + prisma-flow.md + PRISMA-checklist.md", dependsOn: // via background_output wait, [task_academic, task_industry, task_empirical])
+background_output(task_id="bg_...", // collect from "academic-reviewer", body: "Task #1 registered — claim, execute, write files, mark completed, report.")
+background_output(task_id="bg_...", // collect from "industry-reviewer", body: "Task #2 registered — claim, execute, write files, mark completed, report.")
+background_output(task_id="bg_...", // collect from "empirical-reviewer", body: "Task #3 registered — claim, execute, write files, mark completed, report.")
+background_output(task_id="bg_...", // collect from "synthesis-merger", body: "Task #4 registered (starts after tasks 1-3) — claim when unblocked, execute, mark completed, report.")
 ```
 
-To verify completion, wait for all four tasks to reach `completed` (via `team_task_list`), then apply the **Closure Contract** (shutdown + delete the team). Verify: all 10 canonical files exist with proper structure; search-log.csv has ≥3 DBs with dates and full strings; PRISMA-checklist.md has 27 rows with file:line pointers.
+To verify completion, wait for all four tasks to reach `completed` (via `background_output(task_id="bg_...") // wait for <system-reminder> then collect`), then apply the **Normal completion (no team)** (shutdown + delete the team). Verify: all 10 canonical files exist with proper structure; search-log.csv has ≥3 DBs with dates and full strings; PRISMA-checklist.md has 27 rows with file:line pointers.
 
 ---
 
@@ -709,7 +707,7 @@ To generate the correct non-Popperian artifact, follow the route:
 ### Popperian Adversarial Team
 
 ```typescript
-team_create({ inline_spec: {
+task(category="deep", run_in_background=true, prompt="Parallel subagent:
   name: "<topic>-evidence",
   members: [
     // CONFIRMATION AGENT
@@ -731,7 +729,7 @@ team_create({ inline_spec: {
    - Route: popperian
    - Evidence directory: {TOPIC_DIR}/03-evidence/
    - Hypothesis registry: {TOPIC_DIR}/02-hypotheses/hypothesis-registry.md
-   - To claim the team task (team_task_update → in_progress, owner confirmation-agent) when starting, mark it completed when files are written, then report via team_send_message.
+   - To claim the team task (task_update → in_progress, owner confirmation-agent) when starting, mark it completed when files are written, then report via background_output.
 `},
     // FALSIFICATION AGENT (Devil's Advocate) — EQUAL resources, non-negotiable
     { name: "falsification-agent", category: "unspecified-high", prompt: `
@@ -767,7 +765,7 @@ team_create({ inline_spec: {
    - Route: popperian
    - Evidence directory: {TOPIC_DIR}/03-evidence/
    - Hypothesis registry: {TOPIC_DIR}/02-hypotheses/hypothesis-registry.md
-   - To claim the team task (team_task_update → in_progress, owner falsification-agent) when starting, mark it completed when files are written, then report via team_send_message.
+   - To claim the team task (task_update → in_progress, owner falsification-agent) when starting, mark it completed when files are written, then report via background_output.
 `}
   ]
 }})
@@ -776,13 +774,13 @@ team_create({ inline_spec: {
 **Register tasks + dispatch (parallel, equal resources):**
 
 ```typescript
-team_task_create(teamRunId, subject: "Evidence — supporting (confirmation)", description: "{TOPIC_DIR}/03-evidence/supporting/ + evidence-log-supporting.md")
-team_task_create(teamRunId, subject: "Evidence — contradicting (falsification)", description: "{TOPIC_DIR}/03-evidence/contradicting/ + evidence-log-contradicting.md")
-team_send_message(teamRunId, to: "confirmation-agent", body: "Task #1 registered — claim, execute, write files, mark completed, report.")
-team_send_message(teamRunId, to: "falsification-agent", body: "Task #2 registered — claim, execute, write files, mark completed, report.")
+task(category="deep", run_in_background=true, description: "Evidence — supporting (confirmation)", description: "{TOPIC_DIR}/03-evidence/supporting/ + evidence-log-supporting.md")
+task(category="deep", run_in_background=true, description: "Evidence — contradicting (falsification)", description: "{TOPIC_DIR}/03-evidence/contradicting/ + evidence-log-contradicting.md")
+background_output(task_id="bg_...", // collect from "confirmation-agent", body: "Task #1 registered — claim, execute, write files, mark completed, report.")
+background_output(task_id="bg_...", // collect from "falsification-agent", body: "Task #2 registered — claim, execute, write files, mark completed, report.")
 ```
 
-To complete, wait for BOTH tasks to reach `completed` (via `team_task_list`), then apply the **Closure Contract**.
+To complete, wait for BOTH tasks to reach `completed` (via `background_output(task_id="bg_...") // wait for <system-reminder> then collect`), then apply the **Normal completion (no team)**.
 
 **Lead merge step (file-per-agent logs merged by lead — evidence pipeline hardening P1-7):**
 
@@ -1222,7 +1220,7 @@ To log results, add columns `SIFT | AACODS | 5Q_pass` to `source-table.md`.
 To prevent race conditions and silent evidence loss, enforce file-per-agent logs merged by the lead:
 
 - Each agent writes ONLY its own log: `evidence-log-supporting.md` / `evidence-log-contradicting.md` (never the shared `evidence-log.md`).
-- The lead merges both into canonical `evidence-log.md` (deduplicated, provenance preserved) after `team_task_list` shows terminal tasks.
+- The lead merges both into canonical `evidence-log.md` (deduplicated, provenance preserved) after `background_output(task_id="bg_...") // wait for <system-reminder> then collect` shows terminal tasks.
 - Parity gate: `|searches_fals - searches_conf| ≤1` else re-run the lagging agent. Record `searches_executed` per agent in the log header.
 - Checkpoint: reviewer files are durable even if merge fails; merge is idempotent and re-runnable.
 - Schema: every evidence file requires frontmatter `source_url:` + `evidence_level:` enum + `hypothesis_id:`; merge validates schema.
@@ -1293,7 +1291,7 @@ To satisfy synthesis completeness, include:
 | source-table.md with evidence levels + year + recency + artifact link for every source | 1 | all | Grade every source; add missing columns |
 | gap-map.md with Robinson 7 gaps + Reasons A-D + Petersen heatmap | 1 | all | Classify gaps; produce heatmap (see gap-taxonomy template) |
 | contradictions-map.md with ≥2 contradictions (popperian) OR ≥2 gap types / ≥3 sparse cells (other routes) | 1 | gate conditional | Route-aware: popperian requires ≥2 contradictions; scoping/systematic require ≥2 gap types or ≥3 sparse cells; exploratory/dsr require ≥2 themes or ≥3 designs |
-| All Phase-1 team tasks terminal + teams deleted (Closure Contract) | 1 | all | Complete shutdown/delete before next phase |
+| All Phase-1 team tasks terminal + teams deleted (Normal completion (no team)) | 1 | all | Complete shutdown/delete before next phase |
 | hypothesis-registry.md with 2-5 operationalized hypotheses (severity + Ioannidis/FAF per H) + lock file | 2 | popperian | Each hypothesis must have quantified claim + operationalized falsification criterion + severity + Ioannidis/FAF |
 | RQ-registry.md / themes.md / candidate-designs.md per route | 2 | non-popperian | Write route-appropriate artifact (see Phase 2B) |
 | Every hypothesis has severity + Ioannidis/FAF flags | 2 | popperian | Add severity budget + prior/flexibility/bias per H |
@@ -1337,9 +1335,9 @@ To satisfy synthesis completeness, include:
 | No contradictions found in literature (popperian) | Check if route is correct — settled field may need scoping route. If truly popperian, re-dispatch with broader scope; if field is settled, re-route to scoping and map gaps instead. |
 | Falsification member found nothing | Mark as 'Not Falsified After Severe Search' — but document severity, search depth (queries, DBs, levels), and Ioannidis shift. |
 | Supporting and contradicting evidence equally strong | Flag as 'Contested — unresolved.' Present both sides with PI/CI + GRADE; do NOT force a conclusion. Log in SoF as Low certainty due to inconsistency. |
-| Team member fails in Phase 1 or Phase 3 | Re-run via `team_send_message` to that member (same team session) with more specific instructions |
+| Team member fails in Phase 1 or Phase 3 | Re-run via `background_output` to that member (same team session) with more specific instructions |
 | Team member's deliverable files missing | Re-dispatch same member; if team closed, re-create a 1-member team or use a single `deep` delegate |
-| Team tools unavailable | Fall back to `task(category="deep", run_in_background=true/false)` with the same member prompts |
+| Subagent fails in Phase 1 or Phase 3 | Re-run via `task(task_id="ses_...", prompt="Fix: ...")` (same subagent session) with more specific instructions |
 | User asks a follow-up on non-existent section | Search INDEX.md for similar topics. If truly not found, acknowledge the gap and start fresh research. |
 | Same iteration hash detected | Block execution. Tell user: 'This exact question+mode+approach was tried before with [result]. Try a different angle or confirm you want to retry.' |
 | Source verification finds hallucinated citations (HTTP 000/404 or Crossref fail) | Remove the citation. Add note: 'Removed — source could not be verified (HTTP $code, Crossref $status).' Re-run the search that produced it. |

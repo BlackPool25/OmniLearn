@@ -26,3 +26,14 @@ All notable changes to OmniLearn will be documented here.
 ### Changed
 - Skill frontmatter: added name, version, last-verified, pushy description with 6 triggers
 - Package version: 1.4.0 → 2.1.0
+
+## 2.2.0 — 2026-09-02 — Normal orchestration (no teams)
+
+### Changed
+- **Removed `team_*` orchestration** — now uses normal `task(category="deep", run_in_background=true/false)` + `background_output(task_id="bg_...")` only. No `team_create`, `team_task_*`, `team_send_message`, `Closure Contract`, or `blockedBy`.
+- Phase 1: 3 parallel reviewers via `task(run_in_background=true)` → collect via `background_output` after `<system-reminder>`, then spawn merger as blocking `task(run_in_background=false)`
+- Phase 3: confirmation/falsification pair via `task(run_in_background=true)` → collect via `background_output`
+- Docs: Mandatory Tools table and orchestration workflow updated to normal orchestration; fallback and error table updated
+
+### Fixed
+- User request: don't use teams, just normal orchestration
