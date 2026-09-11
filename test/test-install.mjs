@@ -80,7 +80,15 @@ test('--help exits with code 0 and shows help text', () => {
 test('--version exits with code 0 and shows version', () => {
   const r = sandboxExec(['--version']);
   assert.equal(r.status, 0);
-  assert.ok(r.stdout.includes('v1.'), `should show version, got: ${r.stdout}`);
+  assert.ok(/v\d+\.\d+\.\d+/.test(r.stdout), `should show semver version, got: ${r.stdout}`);
+});
+
+test('--help documents self-install flags', () => {
+  const r = sandboxExec(['--help']);
+  assert.equal(r.status, 0);
+  assert.ok(r.stdout.includes('--skills-only'), 'should document --skills-only');
+  assert.ok(r.stdout.includes('--skip-omo'), 'should document --skip-omo');
+  assert.ok(r.stdout.includes('--skip-opencode'), 'should document --skip-opencode');
 });
 
 test('--check runs health check', () => {
@@ -296,6 +304,38 @@ test('install.js uses writeOpenCodeConfigSafe (not old writeOpenCodeConfig)', ()
   const safeUsages = content.match(/writeOpenCodeConfigSafe/g) || [];
   // writeOpenCodeConfigSafe has more specific signature, it's fine
   assert.ok(safeUsages.length >= 1, 'should have writeOpenCodeConfigSafe calls');
+});
+
+// ============================================================
+// SUITE 7: Ask-before-install regression locks (v2.3.0)
+// ============================================================
+console.log('\n📋 Ask-Before-Install Tests');
+
+test('install.js detects binaries before touching them', () => {
+  const content = fs.readFileSync(INSTALL_JS, 'utf-8');
+  assert.ok(content.includes('detectBinary'), 'missing detectBinary helper');
+  assert.ok(content.includes('askKeepOrReinstall'), 'missing askKeepOrReinstall gate');
+  assert.ok(content.includes('channelOf'), 'missing prerelease channel parsing');
+});
+
+test('install.js has NO auto-approve path for remote binaries', () => {
+  const content = fs.readFileSync(INSTALL_JS, 'utf-8');
+  assert.ok(!content.includes('if (autoYes) return true'), 'auto-approve bypass must not exist');
+  assert.ok(!/confirmRemoteScript\([^)]*autoYes/.test(content), 'confirmRemoteScript must not take autoYes');
+});
+
+test('install.js supports skills-only / skip flags', () => {
+  const content = fs.readFileSync(INSTALL_JS, 'utf-8');
+  assert.ok(content.includes('--skills-only'), 'missing --skills-only flag');
+  assert.ok(content.includes('--skip-omo'), 'missing --skip-omo flag');
+  assert.ok(content.includes('--skip-opencode'), 'missing --skip-opencode flag');
+});
+
+test('install.js never treats prereleases as missing', () => {
+  const content = fs.readFileSync(INSTALL_JS, 'utf-8');
+  for (const channel of ['beta', 'next', 'rc', 'alpha', 'canary']) {
+    assert.ok(content.includes(`'${channel}'`) || content.includes(`"${channel}"`), `channel ${channel} must be recognized`);
+  }
 });
 
 // ============================================================

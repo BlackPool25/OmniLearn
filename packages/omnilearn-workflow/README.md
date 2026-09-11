@@ -3,7 +3,7 @@
 [![npm version](https://img.shields.io/npm/v/omnilearn-workflow.svg)](https://www.npmjs.com/package/omnilearn-workflow)
 [![License: MIT](https://img.shields.io/github/license/BlackPool25/OmniLearn.svg)](LICENSE)
 
-Installer for OmniLearn v2.2.0 — multi-agent learning workflows for OpenCode.
+Installer for OmniLearn v2.3.0 — multi-agent learning workflows for OpenCode.
 
 ```bash
 npx omnilearn-workflow
@@ -60,32 +60,39 @@ What changed in this version:
 
 | Flag | What it does |
 |---|---|
-| `--yes` | Non-interactive install with defaults |
-| `--check` | Verify install health (commands, references, MCP, plugin) |
+| `--yes` | Non-interactive: skills + MCPs, keeps existing omo/opencode |
+| `--skills-only` | Skills + MCPs only — never touches omo or opencode |
+| `--skip-omo` | Never touches the omo binary |
+| `--skip-opencode` | Never touches the opencode binary |
+| `--check` | Verify install health (commands, references, MCP, plugin, binaries) |
 | `--version` | Show package version |
 | `--help` | Show usage help |
 
 ## Requirements
 
 - **Node.js >= 18** — no Bun needed
-- **OpenCode** (installer can auto-install)
-- **oh-my-openagent (`omo`)** — provides multi-agent orchestration. The
-  installer handles it non-interactively:
-
-  ```bash
-  npx oh-my-openagent@latest install --no-tui --platform=opencode \
-    --claude=no --openai=no --gemini=no --copilot=no --skip-auth
-  ```
+- **OpenCode** — install it yourself:
+  `curl -fsSL https://opencode.ai/install | bash`
+- **oh-my-openagent (`omo`)** — provides multi-agent orchestration:
+  `npx oh-my-openagent@latest install`
 
   Providers are configured later inside OpenCode.
 
 ## What the installer does
 
-1. Checks OpenCode is installed (offers to install if missing)
-2. Configures the **Context7 MCP** for documentation lookups
-3. Installs **oh-my-openagent** for multi-agent orchestration
-4. Copies the 6 command files to `~/.config/opencode/command/`
-5. Copies the research templates to the omnilearn skill references dir
+The default scope is **skills + MCPs**. The installer detects your existing
+`omo` and `opencode` installs first — stable releases and prerelease channels
+(`-beta`, `-next`, `-rc`) alike count as installed — prints the detected
+version, and asks before touching either binary. Keeping what you have is
+always the default, and non-interactive runs keep existing installs. A beta is
+never downgraded to stable unless you explicitly choose a reinstall. If you
+manage both tools yourself, `--skills-only` skips them entirely.
+
+1. Detects existing omo/opencode (version + channel) — asks, defaults to keep
+2. Copies the 6 command files to `~/.config/opencode/command/`
+3. Copies the research templates to the omnilearn skill references dir
+4. Configures the **Context7 MCP** for documentation lookups
+5. Registers the **oh-my-openagent plugin entry** (binaries only on opt-in)
 6. Optionally configures your learning directory
 
 ### Context7 MCP setup
@@ -115,9 +122,9 @@ leaves it alone. Run `npx omnilearn-workflow --check` anytime to verify.
 npx omnilearn-workflow --check
 ```
 
-Checks OpenCode, all 6 commands, reference templates, Context7 MCP, the
-oh-my-openagent plugin, and your learning directory — warnings include the
-exact fix command.
+Checks detected omo/opencode versions, all 6 commands, reference templates,
+Context7 MCP, the oh-my-openagent plugin, and your learning directory —
+warnings include the exact fix command.
 
 ## License
 

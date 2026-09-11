@@ -67,9 +67,13 @@ You type a command. The orchestrator spins up a team of research agents in paral
 
 ## Prerequisites
 
-- **OpenCode** — `curl -fsSL https://opencode.ai/install | bash` (or `npx omnilearn-workflow` does it for you)
-- **oh-my-openagent** — `npx oh-my-openagent@latest install` (required for multi-agent workflows; the installer does this non-interactively)
+- **OpenCode** — install it yourself: `curl -fsSL https://opencode.ai/install | bash`
+- **oh-my-openagent** — install it yourself: `npx oh-my-openagent@latest install` (required for multi-agent workflows)
 - **Node.js >= 18** — no Bun required
+
+The installer detects your existing `omo`/`opencode` installs (beta channels
+count as installed), asks before touching either, and defaults to keeping
+what you have. If you manage both tools yourself: `npx omnilearn-workflow --skills-only`.
 
 Run `npx omnilearn-workflow --check` anytime to see what's missing.
 
@@ -79,7 +83,7 @@ Run `npx omnilearn-workflow --check` anytime to see what's missing.
 npx omnilearn-workflow
 ```
 
-The installer copies the 6 command files to `~/.config/opencode/command/`, installs the research methodology templates under the omnilearn skill references dir, configures Context7 MCP for documentation lookups (remote mode — no API key), installs oh-my-openagent for multi-agent orchestration, and optionally sets up your learning directory.
+The installer copies the 6 command files to `~/.config/opencode/command/`, installs the research methodology templates under the omnilearn skill references dir, configures Context7 MCP for documentation lookups (remote mode — no API key), registers the oh-my-openagent plugin entry (binaries only on your explicit opt-in — existing installs, including betas, are never replaced or downgraded), and optionally sets up your learning directory.
 
 Manual install if you prefer:
 

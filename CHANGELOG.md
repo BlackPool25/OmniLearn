@@ -2,6 +2,32 @@
 
 All notable changes to OmniLearn will be documented here.
 
+## 2.3.0 — 2026-09-11 — Ask-before-install (beta-safe)
+
+### Fixed
+- **Installer no longer touches omo/opencode uninvited** — detects existing
+  installs FIRST (`command -v` + `--version` probes, prerelease-aware:
+  `-beta`/`-next`/`-rc`/`-alpha`/`-canary`/`-dev` all count as installed),
+  prints version + channel, and asks (keep [default] / explicit opt-in
+  reinstall). Non-interactive runs default to keep-existing. Previously a
+  beta omo install could be paved over by stable — now a beta is never
+  downgraded without an explicit user choice.
+- **Missing binaries are guidance, not force-installs** — when omo/opencode
+  are absent the installer prints self-install commands and continues with
+  skills + MCPs instead of executing `curl | bash` or `npx` installers
+  unprompted. No exit-1 dead end.
+
+### Added
+- **Self-install flags** — `--skills-only` (= `--skip-omo --skip-opencode`),
+  `--skip-omo`, `--skip-opencode`, documented in `--help` and the README.
+- **Default scope is skills + MCPs** — command files, reference templates,
+  Context7 MCP entry, omo plugin wiring. Binaries are out of scope unless
+  explicitly opted in. `--check` now reports detected omo/opencode versions.
+
+### Synced
+- `commands/` verified byte-identical to live skills (`ec9b941b` research
+  skill included, all 6 commands match) — no copy needed, sha proof logged.
+
 ## 2.1.0 — 2026-09-02 — Adaptive research engine
 
 ### Added

@@ -61,15 +61,15 @@ Quality review (`omnilearn-start`, `omnilearn-roadmap`) uses `oracle` agents —
 
 ## The installer (`bin/install.js`)
 
-`npx omnilearn-workflow`:
+`npx omnilearn-workflow` (default scope: skills + MCPs):
 
-1. Ensures OpenCode is installed (with a supply-chain confirmation before any `curl | bash`)
+1. Detects existing `omo`/`opencode` installs first — version + channel via `command -v` and `--version` probes. Stable AND prerelease channels (`-beta`, `-next`, `-rc`) count as installed, never as missing/outdated. Prints the detected version and asks (keep [default] / explicit opt-in reinstall); non-interactive runs keep existing. Never auto-installs, auto-replaces, or downgrades (no beta→stable channel switch without explicit choice). `--skills-only` (or `--skip-omo` / `--skip-opencode`) skips binaries entirely for self-managed setups.
 2. Configures **Context7 MCP** in remote mode (no API key) in the OpenCode config — JSONC-safe read/write
-3. Installs **oh-my-openagent** non-interactively (`npx oh-my-openagent@latest install --no-tui --platform=opencode --claude=no --gemini=no --copilot=no --skip-auth` — note: `--no-tui` *requires* those provider flags; all `no` binds no subscription)
-4. Copies the six command files to `~/.config/opencode/command/`
+3. Registers the **oh-my-openagent plugin entry** (config wiring); the `omo` binary itself is only installed on explicit opt-in (`npx oh-my-openagent@latest install --no-tui --platform=opencode --claude=no --openai=no --gemini=no --copilot=no --skip-auth` — note: `--no-tui` *requires* those provider flags; all `no` binds no subscription). A remote OpenCode install (`curl | bash`) runs only after a supply-chain confirmation that defaults to no.
+4. Copies the six command files to `~/.config/opencode/command/` plus reference templates to the omnilearn skill references dir
 5. Optionally configures the learning directory
 
-`--check` runs a health check across: OpenCode, command files, Context7 MCP, oh-my-openagent plugin, learning directory.
+`--check` runs a health check across: detected omo/opencode versions, command files, reference templates, Context7 MCP, oh-my-openagent plugin, learning directory.
 
 ## Testing
 
