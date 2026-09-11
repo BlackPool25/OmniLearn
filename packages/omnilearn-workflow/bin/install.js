@@ -39,6 +39,15 @@ const __dirname = path.dirname(__filename);
 
 const PKG_DIR = path.resolve(__dirname, '..');
 const COMMANDS_DIR = path.join(PKG_DIR, 'commands');
+const REFERENCES_DIR = path.join(PKG_DIR, 'references');
+const OPENCODE_SKILLS_DIR = path.join(
+  process.env.HOME || process.env.USERPROFILE,
+  '.config',
+  'opencode',
+  'skills',
+  'omnilearn',
+  'references',
+);
 const OPENCODE_CONFIG_DIR = path.join(
   process.env.HOME || process.env.USERPROFILE,
   '.config',
@@ -131,7 +140,7 @@ function printHelp() {
       '',
       `${pc.bold('What this does:')}`,
       `  1. Checks OpenCode is installed (offers to install if missing)`,
-      `  2. Copies 6 command files to ~/.config/opencode/command/`,
+      `  2. Copies 6 command files to ~/.config/opencode/command/ + reference templates to the omnilearn skill dir`,
       `  3. Makes them available as ${pc.cyan('/omnilearn-*')} commands in OpenCode`,
       `  4. Configures Context7 MCP for documentation lookups`,
       `  5. Checks for oh-my-openagent (multi-agent orchestration)`,
@@ -363,6 +372,58 @@ async function copyCommandFiles(forceOverwrite) {
   return copied;
 }
 
+/**
+ * Copy the references/ payload (research methodology templates) into the
+ * OmniLearn skill directory so command files and agents can rely on them.
+ * Non-interactive by design: templates are additive and safe to overwrite.
+ */
+function copyReferenceFiles() {
+  if (!fs.existsSync(REFERENCES_DIR)) {
+    log.warn('No references/ payload in package — skipping.');
+    return 0;
+  }
+
+  fs.mkdirSync(OPENCODE_SKILLS_DIR, { recursive: true });
+
+  const files = [];
+  const walk = (dir, rel = '') => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const relPath = rel ? `${rel}/${entry.name}` : entry.name;
+      if (entry.isDirectory()) walk(path.join(dir, entry.name), relPath);
+      else if (entry.isFile()) files.push(relPath);
+    }
+  };
+  try {
+    walk(REFERENCES_DIR);
+  } catch (err) {
+    log.error(`Failed to read references payload: ${err.message}`);
+    return 0;
+  }
+
+  let copied = 0;
+  for (const relPath of files) {
+    const src = path.join(REFERENCES_DIR, relPath);
+    const dest = path.join(OPENCODE_SKILLS_DIR, relPath);
+    try {
+      fs.mkdirSync(path.dirname(dest), { recursive: true });
+      fs.copyFileSync(src, dest);
+      fs.chmodSync(dest, 0o644);
+      copied++;
+    } catch (err) {
+      log.error(`Failed to install reference ${relPath}: ${err.message}`);
+    }
+  }
+
+  if (copied === files.length && files.length > 0) {
+    log.success(`All ${copied} reference file(s) verified at ${pc.cyan(OPENCODE_SKILLS_DIR)}`);
+  } else if (files.length === 0) {
+    log.warn('References payload is empty — nothing installed.');
+  } else {
+    log.warn(`Only ${copied}/${files.length} reference files installed.`);
+  }
+  return copied;
+}
+
 async function setupContext7MCP(configInfo) {
   const { path: configPath, data: config, isJSONC } = configInfo;
 
@@ -575,7 +636,29 @@ async function runHealthCheck() {
     checks.push(`  ${pc.dim('Run: npx omnilearn-workflow')}`);
   }
 
-  // 3. Context7 MCP
+  // 3. Reference templates
+  const refCount = (() => {
+    try {
+      const walk = (dir) => {
+        let n = 0;
+        for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+          n += e.isDirectory() ? walk(path.join(dir, e.name)) : e.isFile() ? 1 : 0;
+        }
+        return n;
+      };
+      return fs.existsSync(OPENCODE_SKILLS_DIR) ? walk(OPENCODE_SKILLS_DIR) : 0;
+    } catch {
+      return 0;
+    }
+  })();
+  if (refCount > 0) {
+    checks.push(`${pc.green('✓')} Reference templates installed (${refCount} file(s) at ${pc.cyan('~/.config/opencode/skills/omnilearn/references/')})`);
+  } else {
+    checks.push(`${pc.yellow('⚠')} Reference templates not installed`);
+    checks.push(`  ${pc.dim('Run: npx omnilearn-workflow --yes')}`);
+  }
+
+  // 4. Context7 MCP
   if (configInfo.data && isContext7Configured(configInfo.data)) {
     const ctxKey = Object.keys(configInfo.data.mcp).find(
       (k) => k.toLowerCase().includes('context7') || k.toLowerCase().includes('ctx7'),
@@ -586,7 +669,7 @@ async function runHealthCheck() {
     checks.push(`  ${pc.dim('Run: npx omnilearn-workflow to set it up')}`);
   }
 
-  // 4. oh-my-openagent
+  // 5. oh-my-openagent
   if (configInfo.data && isOhMyOpenAgentInstalled(configInfo.data)) {
     checks.push(`${pc.green('✓')} oh-my-openagent plugin registered`);
   } else {
@@ -594,7 +677,7 @@ async function runHealthCheck() {
     checks.push(`  ${pc.dim('Run: npx oh-my-openagent@latest install')}`);
   }
 
-  // 5. OmniLearn config
+  // 6. OmniLearn config
   if (isOmniLearnConfigured()) {
     const cfg = readOmniLearnConfig();
     const dir = cfg?.learningDirectory || 'unknown';
@@ -692,9 +775,10 @@ async function install(autoYes = false) {
   const refreshedConfig = readOpenCodeConfigSafe();
   await ensureOhMyOpenAgent(refreshedConfig, autoYes);
 
-  // ── Step 4: Copy command files ──
-  log.step('4/5  Installing OmniLearn commands');
+  // ── Step 4: Copy command files + references ──
+  log.step('4/5  Installing OmniLearn commands + references');
   await copyCommandFiles(autoYes);
+  copyReferenceFiles();
 
   // ── Step 5: Learning directory ──
   log.step('5/5  Learning directory');

@@ -79,7 +79,7 @@ Run `npx omnilearn-workflow --check` anytime to see what's missing.
 npx omnilearn-workflow
 ```
 
-The installer copies the 6 command files to `~/.config/opencode/command/`, configures Context7 MCP for documentation lookups (remote mode — no API key), installs oh-my-openagent for multi-agent orchestration, and optionally sets up your learning directory.
+The installer copies the 6 command files to `~/.config/opencode/command/`, installs the research methodology templates under the omnilearn skill references dir, configures Context7 MCP for documentation lookups (remote mode — no API key), installs oh-my-openagent for multi-agent orchestration, and optionally sets up your learning directory.
 
 Manual install if you prefer:
 
@@ -97,13 +97,15 @@ OmniLearn/
 └── packages/omnilearn-workflow/
     ├── package.json
     ├── bin/install.js           # npx installer
-    └── commands/                # The actual workflows
-        ├── omnilearn-init.md
-        ├── omnilearn-roadmap.md
-        ├── omnilearn-roadmap-edit.md
-        ├── omnilearn-start.md
-        ├── omnilearn-refine.md
-        └── omnilearn-research.md
+    ├── commands/                # The actual workflows
+    │   ├── omnilearn-init.md
+    │   ├── omnilearn-roadmap.md
+    │   ├── omnilearn-roadmap-edit.md
+    │   ├── omnilearn-start.md
+    │   ├── omnilearn-refine.md
+    │   └── omnilearn-research.md
+    └── references/              # Research methodology templates (installed by bin/install.js)
+        └── research-templates/
 ```
 
 ## Development

@@ -37,3 +37,8 @@ All notable changes to OmniLearn will be documented here.
 
 ### Fixed
 - User request: don't use teams, just normal orchestration
+
+### Synced (2026-09-11) — research skill quality upgrades
+- `commands/omnilearn-research.md` synced byte-identical to the verified improved skill (`ec9b941b`): PRISMA-S strategy tables, contradiction-seeking queries, arxiv grounding, hypothesis-first ordering, relevance gate + cascade retrieval, field-level citation check (R/P/H), Step 3.5 claim-lock, evidence-bound confidence rubric, 6 new quality gates
+- `bin/install.js` now also installs `references/` payloads (recursive copy to the omnilearn skill references dir) and covers them in `--check`; help text updated
+- Package README rewritten for v2.2.0 (install/usage, quality upgrades, omo + Context7 MCP wiring)
